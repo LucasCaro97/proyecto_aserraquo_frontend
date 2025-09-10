@@ -1,58 +1,182 @@
-import './App.css'
-import { Routes, Route, Router } from 'react-router-dom';
-import { HomePage, LoginPage, AboutPage, ContactPage, Dashboard, IngresoRollosPage, TablaRollos, IngresosFuturosForm, IngresosFuturosTable } from './pages';
-import { Header } from './components/Header';
-import { AuthProvider } from './components/AuthContext';
-import { PrivateRoute } from './components/PrivateRoute';
-import { Footer } from './components/Footer';
+import "./App.css";
+import { Routes, Route, Router } from "react-router-dom";
+import {
+  HomePage,
+  LoginPage,
+  AboutPage,
+  ContactPage,
+  Dashboard,
+  IngresoRollosPage,
+  TablaRollos,
+  IngresosFuturosForm,
+  IngresosFuturosTable,
+  BancosForm,
+  BancosTable,
+  IngresosForm,
+  IngresosTable,
+  EgresosForm,
+  EgresosTable,
+  EgresosFuturosForm,
+  EgresosFuturosTable,
+  RetiroSociosForm,
+  RetiroSociosTable,
+} from "./pages";
+import { Header } from "./components/Header";
+import { AuthProvider } from "./components/AuthContext";
+import { PrivateRoute } from "./components/PrivateRoute";
+import { Footer } from "./components/Footer";
 
 function App() {
-
   return (
     <>
-        <AuthProvider>
-          <Header />
-          <Routes>
-            <Route path="/" element={<HomePage />} />
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/about" element={<AboutPage />} />
-            <Route path="/contact" element={<ContactPage />} />
+      <AuthProvider>
+        <Header />
+        <Routes>
+          <Route path="/" element={<HomePage />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/about" element={<AboutPage />} />
+          <Route path="/contact" element={<ContactPage />} />
 
-            {/* Ruta privada, solo accesible para usuarios logueados */}
-            <Route path='/dashboard' element={
+          {/* Ruta privada, solo accesible para usuarios logueados */}
+          <Route
+            path="/dashboard"
+            element={
               <PrivateRoute>
-                <Dashboard/>
+                <Dashboard />
               </PrivateRoute>
-              }/>
+            }
+          />
 
-              <Route path='/ingreso-rollos' element={
+          <Route
+            path="/ingreso-rollos"
+            element={
               <PrivateRoute>
-                <IngresoRollosPage/>
+                <IngresoRollosPage />
               </PrivateRoute>
-              }/>
+            }
+          />
 
-              <Route path='/visualizar-ingreso-rollos' element={
+          <Route
+            path="/visualizar-ingreso-rollos"
+            element={
               <PrivateRoute>
-                <TablaRollos/>
+                <TablaRollos />
               </PrivateRoute>
-              }/>
+            }
+          />
 
-              <Route path='/ingresos-futuros' element={
+          <Route
+            path="/ingresos-futuros"
+            element={
               <PrivateRoute>
-                <IngresosFuturosForm/>
+                <IngresosFuturosForm />
               </PrivateRoute>
-              }/>
+            }
+          />
 
-              <Route path='/visualizar-ingresos-futuros' element={
+          <Route
+            path="/visualizar-ingresos-futuros"
+            element={
               <PrivateRoute>
-                <IngresosFuturosTable/>
+                <IngresosFuturosTable />
               </PrivateRoute>
-              }/>
-          </Routes>
-          <Footer />
-        </AuthProvider>
+            }
+          />
+
+          <Route
+            path="/bancos"
+            element={
+              <PrivateRoute>
+                <BancosForm />
+              </PrivateRoute>
+            }
+          />
+
+          <Route
+            path="/visualizar-bancos"
+            element={
+              <PrivateRoute>
+                <BancosTable />
+              </PrivateRoute>
+            }
+          />
+
+          <Route
+            path="/ingresos"
+            element={
+              <PrivateRoute>
+                <IngresosForm />
+              </PrivateRoute>
+            }
+          />
+
+          <Route
+            path="/visualizar-ingresos"
+            element={
+              <PrivateRoute>
+                <IngresosTable />
+              </PrivateRoute>
+            }
+          />
+
+          <Route
+            path="/egresos"
+            element={
+              <PrivateRoute>
+                <EgresosForm />
+              </PrivateRoute>
+            }
+          />
+
+          <Route
+            path="/visualizar-egresos"
+            element={
+              <PrivateRoute>
+                <EgresosTable />
+              </PrivateRoute>
+            }
+          />
+
+          <Route
+            path="/egresos-futuros"
+            element={
+              <PrivateRoute>
+                <EgresosFuturosForm />
+              </PrivateRoute>
+            }
+          />
+
+          <Route
+            path="/visualizar-egresos-futuros"
+            element={
+              <PrivateRoute>
+                <EgresosFuturosTable />
+              </PrivateRoute>
+            }
+          />
+
+          <Route
+            path="/retiro-socios"
+            element={
+              <PrivateRoute>
+                <RetiroSociosForm />
+              </PrivateRoute>
+            }
+          />
+
+          <Route
+            path="/visualizar-retiro-socios"
+            element={
+              <PrivateRoute>
+                <RetiroSociosTable />
+              </PrivateRoute>
+            }
+          />
+        </Routes>
+        <Footer />
+      </AuthProvider>
     </>
-  )
+  );
 }
 
-export default App
+export default App;

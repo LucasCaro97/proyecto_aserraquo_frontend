@@ -46,7 +46,9 @@ export const Dashboard = () => {
       icon: <Building2 className="h-8 w-8" />,
       color: 'bg-purple-500',
       hoverColor: 'hover:bg-purple-600',
-      description: 'Gestión de cuentas bancarias y movimientos'
+      description: 'Gestión de cuentas bancarias y movimientos',
+      urlForm: '/bancos',
+      urlTable: '/visualizar-bancos'
     },
     {
       id: 'ingresos',
@@ -54,7 +56,9 @@ export const Dashboard = () => {
       icon: <ArrowUpCircle className="h-8 w-8" />,
       color: 'bg-emerald-500',
       hoverColor: 'hover:bg-emerald-600',
-      description: 'Registro y control de todos los ingresos'
+      description: 'Registro y control de todos los ingresos',
+      urlForm: '/ingresos',
+      urlTable: '/visualizar-ingresos'
     },
     {
       id: 'egresos',
@@ -62,7 +66,9 @@ export const Dashboard = () => {
       icon: <ArrowDownCircle className="h-8 w-8" />,
       color: 'bg-red-500',
       hoverColor: 'hover:bg-red-600',
-      description: 'Registro y control de todos los gastos'
+      description: 'Registro y control de todos los gastos',
+      urlForm: '/egresos',
+      urlTable: '/visualizar-egresos'
     },
     {
       id: 'egresos-futuros',
@@ -70,7 +76,9 @@ export const Dashboard = () => {
       icon: <TrendingDown className="h-8 w-8" />,
       color: 'bg-orange-500',
       hoverColor: 'hover:bg-orange-600',
-      description: 'Planificación y proyección de gastos'
+      description: 'Planificación y proyección de gastos',
+      urlForm: '/egresos-futuros',
+      urlTable: '/visualizar-egresos-futuros'
     },
     {
       id: 'retiro-socios',
@@ -78,7 +86,9 @@ export const Dashboard = () => {
       icon: <Users className="h-8 w-8" />,
       color: 'bg-indigo-500',
       hoverColor: 'hover:bg-indigo-600',
-      description: 'Gestión de retiros y distribuciones'
+      description: 'Gestión de retiros y distribuciones',
+      urlForm: '/retiro-socios',
+      urlTable: '/visualizar-retiro-socios'
     }
   ];
 

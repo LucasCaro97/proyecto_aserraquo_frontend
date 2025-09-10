@@ -7,5 +7,16 @@ import {IngresoRollosPage} from './IngresoRollosPage'
 import { TablaRollos } from './IngresoRollosTable'
 import { IngresosFuturosForm } from './IngresosFuturosForm'
 import { IngresosFuturosTable } from './IngresosFuturosTable'
+import { BancosForm } from './BancosForm'   
+import { BancosTable } from './BancosTable'
+import { IngresosForm } from './IngresosForm'
+import { IngresosTable } from './IngresosTable'
+import { EgresosTable } from './EgresosTable'
+import { EgresosForm } from './EgresosForm'
+import { EgresosFuturosForm } from './EgresosFuturosForm'
+import { EgresosFuturosTable } from './EgresosFuturosTable'
+import { RetiroSociosForm } from './RetiroSociosForm'
+import { RetiroSociosTable} from './RetiroSociosTable'
 
-export {HomePage, AboutPage, ContactPage, LoginPage, Dashboard, IngresoRollosPage, TablaRollos, IngresosFuturosForm, IngresosFuturosTable}
+export {HomePage, AboutPage, ContactPage, LoginPage, Dashboard, IngresoRollosPage, TablaRollos, IngresosFuturosForm, IngresosFuturosTable, 
+    BancosForm, BancosTable, IngresosForm, IngresosTable, EgresosForm, EgresosTable, EgresosFuturosForm, EgresosFuturosTable, RetiroSociosForm, RetiroSociosTable }
