@@ -70,7 +70,7 @@ export const LoginPage = () => {
           {/* Logo y texto superpuesto */}
           <div className="absolute inset-0 flex flex-col justify-center items-center text-white p-8">
             <h2 className="text-3xl font-bold text-center mb-4">
-              Gestión Optimizada para Aserraderos
+              Gestión Optimizada para Industrias
             </h2>
             <p className="text-lg text-center text-gray-200">
               Simplifica, optimiza y ahorra con nuestro sistema integral
