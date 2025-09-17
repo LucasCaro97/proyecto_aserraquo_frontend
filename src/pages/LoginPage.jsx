@@ -4,6 +4,7 @@ import { Eye, EyeOff, User, Lock } from 'lucide-react';
 import axios from 'axios';
 import { useAuth } from '../components/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import loginImage from '../assets/loginImage.avif';
 
 
 export const LoginPage = () => {
@@ -60,7 +61,7 @@ export const LoginPage = () => {
       <div className="hidden lg:flex lg:w-1/2 relative">
         <div className="w-full h-screen relative overflow-hidden flex items-center justify-center">
           <img
-            src="src/assets/loginImage.avif"
+            src={loginImage}
             alt="SistemasQUO Background"
             className="w-full object-cover object-center"
           />
