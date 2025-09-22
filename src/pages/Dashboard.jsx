@@ -1,5 +1,4 @@
-import React, { use } from 'react'
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { 
   Plus, 
   Eye, 
@@ -9,14 +8,14 @@ import {
   ArrowUpCircle, 
   ArrowDownCircle, 
   TrendingDown, 
-  Users 
+  Users,
+  History
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 export const Dashboard = () => {
   const [activeSection, setActiveSection] = useState(null);
   const navigate = useNavigate();
-
 
   // Configuración de las secciones del dashboard
   const dashboardSections = [
@@ -49,6 +48,16 @@ export const Dashboard = () => {
       description: 'Gestión de cuentas bancarias y movimientos',
       urlForm: '/bancos',
       urlTable: '/visualizar-bancos'
+    },
+    {
+      id: 'historial-bancario-diario',
+      title: 'Historial Bancario Diario',
+      icon: <History className="h-8 w-8" />,
+      color: 'bg-cyan-600',
+      hoverColor: 'hover:bg-cyan-700',
+      description: 'Visualiza el historial de movimientos de todas las cuentas bancarias.',
+      urlForm: '/historial-bancario',
+      urlTable: '/visualizar-historial-bancario'
     },
     {
       id: 'ingresos',

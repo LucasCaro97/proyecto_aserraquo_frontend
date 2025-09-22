@@ -20,6 +20,8 @@ import {
   EgresosFuturosTable,
   RetiroSociosForm,
   RetiroSociosTable,
+  HistorialBancarioForm,
+  HistorialBancarioTable
 } from "./pages";
 import { Header } from "./components/Header";
 import { AuthProvider } from "./components/AuthContext";
@@ -169,6 +171,24 @@ function App() {
             element={
               <PrivateRoute>
                 <RetiroSociosTable />
+              </PrivateRoute>
+            }
+          />
+
+          <Route
+            path="/historial-bancario"
+            element={
+              <PrivateRoute>
+                <HistorialBancarioForm />
+              </PrivateRoute>
+            }
+          />
+          
+          <Route
+            path="/visualizar-historial-bancario"
+            element={
+              <PrivateRoute>
+                <HistorialBancarioTable />
               </PrivateRoute>
             }
           />

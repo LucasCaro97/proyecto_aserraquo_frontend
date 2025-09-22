@@ -17,6 +17,9 @@ import { EgresosFuturosForm } from './EgresosFuturosForm'
 import { EgresosFuturosTable } from './EgresosFuturosTable'
 import { RetiroSociosForm } from './RetiroSociosForm'
 import { RetiroSociosTable} from './RetiroSociosTable'
+import { HistorialBancarioForm } from './HistorialBancarioForm'
+import { HistorialBancarioTable } from './HistorialBancarioTable'
 
 export {HomePage, AboutPage, ContactPage, LoginPage, Dashboard, IngresoRollosPage, TablaRollos, IngresosFuturosForm, IngresosFuturosTable, 
-    BancosForm, BancosTable, IngresosForm, IngresosTable, EgresosForm, EgresosTable, EgresosFuturosForm, EgresosFuturosTable, RetiroSociosForm, RetiroSociosTable }
+    BancosForm, BancosTable, IngresosForm, IngresosTable, EgresosForm, EgresosTable, EgresosFuturosForm, EgresosFuturosTable, RetiroSociosForm, RetiroSociosTable,
+    HistorialBancarioForm, HistorialBancarioTable};

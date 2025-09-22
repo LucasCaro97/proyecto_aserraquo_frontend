@@ -102,11 +102,6 @@ export const BancosForm = ({ onBack, onSuccess }) => {
             return;
         }
 
-        if (!saldoBanco || parseFloat(saldoBanco) < 0) {
-            setError('El saldo debe ser un número válido mayor o igual a 0');
-            return;
-        }
-
         if (!usuario?.id) {
             setError('Error: No se pudo obtener la información del usuario');
             return;
@@ -144,7 +139,7 @@ export const BancosForm = ({ onBack, onSuccess }) => {
 
         } catch (error) {
             console.error('Error al registrar banco:', error);
-            setError('Error al registrar el banco. Inténtalo de nuevo.');
+            setError(error.response.data.errorMessage);
             setIsLoadingBanco(false);
         }
     };
@@ -226,7 +221,7 @@ export const BancosForm = ({ onBack, onSuccess }) => {
     const handleMoneyChange = (e, setter) => {
         const value = e.target.value;
         // Permitir solo números y punto decimal
-        if (value === '' || /^\d*\.?\d*$/.test(value)) {
+        if (value === '' || /^-?\d*\.?\d*$/.test(value)) {
             setter(value);
         }
     };
