@@ -21,7 +21,8 @@ import {
   RetiroSociosForm,
   RetiroSociosTable,
   HistorialBancarioForm,
-  HistorialBancarioTable
+  HistorialBancarioTable,
+  AdminDashboard
 } from "./pages";
 import { Header } from "./components/Header";
 import { AuthProvider } from "./components/AuthContext";
@@ -189,6 +190,15 @@ function App() {
             element={
               <PrivateRoute>
                 <HistorialBancarioTable />
+              </PrivateRoute>
+            }
+          />
+
+          <Route
+            path="/admin-dashboard"
+            element={
+              <PrivateRoute>
+                <AdminDashboard />
               </PrivateRoute>
             }
           />
