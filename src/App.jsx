@@ -22,7 +22,9 @@ import {
   RetiroSociosTable,
   HistorialBancarioForm,
   HistorialBancarioTable,
-  AdminDashboard
+  AdminDashboard,
+  ChequesForm,
+  ChequesTable
 } from "./pages";
 import { Header } from "./components/Header";
 import { AuthProvider } from "./components/AuthContext";
@@ -199,6 +201,26 @@ function App() {
             element={
               <PrivateRoute>
                 <AdminDashboard />
+              </PrivateRoute>
+            }
+          />
+
+          <Route
+            path="/cheques"
+            element={
+              <PrivateRoute>
+                <ChequesForm />
+              </PrivateRoute>
+            }
+          />
+
+          <Route path="/cheques/:chequeId" element={<ChequesForm />} /> 
+
+          <Route
+            path="/cheques/visualizar"
+            element={
+              <PrivateRoute>
+                <ChequesTable />
               </PrivateRoute>
             }
           />

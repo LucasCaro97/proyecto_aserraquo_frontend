@@ -20,7 +20,9 @@ import { RetiroSociosTable} from './RetiroSociosTable'
 import { HistorialBancarioForm } from './HistorialBancarioForm'
 import { HistorialBancarioTable } from './HistorialBancarioTable'
 import { AdminDashboard } from './DashboardAdmin'
+import { ChequesForm } from './ChequesForm'
+import { ChequesTable } from './ChequesTable'
 
 export {HomePage, AboutPage, ContactPage, LoginPage, Dashboard, IngresoRollosPage, TablaRollos, IngresosFuturosForm, IngresosFuturosTable, 
     BancosForm, BancosTable, IngresosForm, IngresosTable, EgresosForm, EgresosTable, EgresosFuturosForm, EgresosFuturosTable, RetiroSociosForm, RetiroSociosTable,
-    HistorialBancarioForm, HistorialBancarioTable, AdminDashboard};
+    HistorialBancarioForm, HistorialBancarioTable, AdminDashboard,  ChequesForm, ChequesTable};

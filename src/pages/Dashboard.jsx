@@ -9,7 +9,8 @@ import {
   ArrowDownCircle, 
   TrendingDown, 
   Users,
-  History
+  History,
+  CreditCard
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
@@ -48,6 +49,16 @@ export const Dashboard = () => {
       description: 'Gestión de cuentas bancarias y movimientos',
       urlForm: '/bancos',
       urlTable: '/visualizar-bancos'
+    },
+    {
+      id: 'cheques',
+      title: 'Cheques',
+      icon: <CreditCard className="h-8 w-8" />, // Usamos CreditCard para representar cheques
+      color: 'bg-yellow-600',
+      hoverColor: 'hover:bg-yellow-700',
+      description: 'Gestión y seguimiento de cheques recibidos y emitidos.',
+      urlForm: '/cheques', // Ajusta las URL según tu enrutamiento real
+      urlTable: '/cheques/visualizar', // Ajusta las URL según tu enrutamiento real
     },
     {
       id: 'historial-bancario-diario',
