@@ -8,6 +8,8 @@ import {
 } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
+import CrearBancoTerceroModal from '../components/CrearBancoTercerosModal';
+
 
 const TIPO_CHEQUE = {
   EMITIDO: 'EMITIDO',
@@ -25,7 +27,7 @@ const ESTADO_CHEQUE = {
 
 // Función utilitaria para convertir cadenas vacías a null
 const emptyStringToNull = (value) => {
-    return value === '' ? null : value;
+  return value === '' ? null : value;
 };
 
 export const ChequesForm = () => {
@@ -33,8 +35,25 @@ export const ChequesForm = () => {
   const [cuentasPropias, setCuentasPropias] = useState([]);
   const [bancosTerceros, setBancosTerceros] = useState([]);
   const [loading, setLoading] = useState(true); // Indicador de carga de dependencias
-   
-  
+
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const fetchBancosTerceros = async () => {
+    try {
+      const responseBancos = await axios.get(`${apiUrl}/banco-terceros`);
+      setBancosTerceros(responseBancos.data);
+      return true; // Éxito
+    } catch (err) {
+      console.error("Error al cargar bancos de terceros:", err);
+      return false; // Fallo
+    }
+  };
+
+  const handleNewBancoSuccess = () => {
+    setIsModalOpen(false); // 1. Cerrar el modal
+    fetchBancosTerceros(); // 2. Refrescar la lista de bancos
+  };
+
   const apiUrl = import.meta.env.VITE_API_URL;
 
   const [formData, setFormData] = useState({
@@ -57,7 +76,7 @@ export const ChequesForm = () => {
   // 💡 REGLA DE NEGOCIO: Establecer el estado inicial según el TipoCheque
   useEffect(() => {
     // 💡 MODIFICACION: Si estamos en modo visualización, no ejecutar la lógica de cambio de estado inicial
-    if (isViewing) return; 
+    if (isViewing) return;
 
     if (formData.tipoChequeNombre === TIPO_CHEQUE.RECIBIDO) {
       // Cheque recibido: inicia como PENDIENTE
@@ -86,27 +105,17 @@ export const ChequesForm = () => {
     const fetchDependencies = async () => {
       setLoading(true);
       try {
-        // Realizamos las peticiones en paralelo para optimizar la carga
-        const [responseCuentas, responseBancos] = await Promise.all([
+        // Realizamos las peticiones en paralelo
+        await Promise.all([
           // 1. Fetch Cuentas Bancarias Propias
-          axios.get(`${apiUrl}/banco`),
-          // 2. Fetch Bancos de Terceros
-          axios.get(`${apiUrl}/banco-terceros`),
+          axios.get(`${apiUrl}/banco`).then(res => setCuentasPropias(res.data)),
+          // 2. Fetch Bancos de Terceros (usando la nueva función)
+          fetchBancosTerceros(),
         ]);
 
-        // Axios devuelve los datos directamente en la propiedad 'data'
-        setCuentasPropias(responseCuentas.data);
-        setBancosTerceros(responseBancos.data);
-
-        setError(null); // Limpiamos cualquier error previo
+        setError(null);
       } catch (err) {
-        console.error("Error al cargar dependencias:", err);
-        // Usamos el mensaje de error de Axios o un mensaje genérico
-        const errorMessage = err.response
-          ? `Error ${err.response.status}: ${err.response.data.message || 'Fallo de la API.'}`
-          : 'Error de red o conexión al cargar datos.';
-
-        setError(errorMessage);
+        // ... [manejo de error]
       } finally {
         setLoading(false);
       }
@@ -118,40 +127,40 @@ export const ChequesForm = () => {
   useEffect(() => {
     // 1. Verificación del modo: Solo se ejecuta si tenemos un ID
     if (!chequeId) {
-        setLoadingCheque(false); // No hay nada que cargar
-        return;
+      setLoadingCheque(false); // No hay nada que cargar
+      return;
     }
 
     const fetchChequeDetails = async () => {
-        setLoadingCheque(true);
-        setError(null);
-        try {
-            // 2. Llamada GET a la API con el ID
-            const response = await axios.get(`${apiUrl}/cheques/${chequeId}`); 
-            const chequeData = response.data;
-            
-            // 3. Mapear los datos al estado formData
-            setFormData({
-                tipoChequeNombre: chequeData.tipoCheque,
-                monto: chequeData.monto.toString(), // Convertir a string para input type="number"
-                numeroCheque: chequeData.numeroCheque,
-                fechaEmision: chequeData.fechaEmision.split('T')[0], // Limpiar timestamp si viene de la API
-                fechaCobro: chequeData.fechaCobro.split('T')[0], // Limpiar timestamp si viene de la API
-                terceroNombre: chequeData.terceroNombre,
-                bancoTercerosId: chequeData.bancoTercerosId || '', 
-                cuentaBancariaId: chequeData.cuentaBancariaId || '', 
-                estadoChequeNombre: chequeData.estadoCheque,
-            });
+      setLoadingCheque(true);
+      setError(null);
+      try {
+        // 2. Llamada GET a la API con el ID
+        const response = await axios.get(`${apiUrl}/cheques/${chequeId}`);
+        const chequeData = response.data;
 
-        } catch (err) {
-            console.error(`Error al cargar cheque con ID ${chequeId}:`, err);
-            const errorMessage = err.response
-                ? `Error ${err.response.status}: No se pudo cargar el cheque. Puede que no exista.`
-                : 'Error de red o conexión al servidor.';
-            setError(errorMessage);
-        } finally {
-            setLoadingCheque(false);
-        }
+        // 3. Mapear los datos al estado formData
+        setFormData({
+          tipoChequeNombre: chequeData.tipoCheque,
+          monto: chequeData.monto.toString(), // Convertir a string para input type="number"
+          numeroCheque: chequeData.numeroCheque,
+          fechaEmision: chequeData.fechaEmision.split('T')[0], // Limpiar timestamp si viene de la API
+          fechaCobro: chequeData.fechaCobro.split('T')[0], // Limpiar timestamp si viene de la API
+          terceroNombre: chequeData.terceroNombre,
+          bancoTercerosId: chequeData.bancoTercerosId || '',
+          cuentaBancariaId: chequeData.cuentaBancariaId || '',
+          estadoChequeNombre: chequeData.estadoCheque,
+        });
+
+      } catch (err) {
+        console.error(`Error al cargar cheque con ID ${chequeId}:`, err);
+        const errorMessage = err.response
+          ? `Error ${err.response.status}: No se pudo cargar el cheque. Puede que no exista.`
+          : 'Error de red o conexión al servidor.';
+        setError(errorMessage);
+      } finally {
+        setLoadingCheque(false);
+      }
     };
 
     fetchChequeDetails();
@@ -161,7 +170,7 @@ export const ChequesForm = () => {
 
   const handleChange = (e) => {
     // 💡 MODIFICACION: Ignorar cambios si estamos en modo visualización
-    if (isViewing) return; 
+    if (isViewing) return;
 
     const { name, value } = e.target;
     setFormData(prev => ({
@@ -173,7 +182,7 @@ export const ChequesForm = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     // 💡 MODIFICACION: Bloquear el envío si estamos en modo visualización
-    if (isViewing) return; 
+    if (isViewing) return;
 
     setError(null);
     setSuccess(null);
@@ -192,51 +201,51 @@ export const ChequesForm = () => {
     }
 
     // 2. CREACIÓN DEL DTO SIMPLIFICADA
-        const chequeData = {
-            monto: parseFloat(formData.monto), 
-            numeroCheque: formData.numeroCheque,
-            fechaEmision: formData.fechaEmision,
-            fechaCobro: formData.fechaCobro,
-            terceroNombre: formData.terceroNombre,
-            tipoChequeNombre: formData.tipoChequeNombre,
-            estadoChequeNombre: formData.estadoChequeNombre,
-            
-            // 💡 APLICACIÓN DE LA LIMPIEZA:
-            bancoTercerosId: emptyStringToNull(formData.bancoTercerosId),
-            cuentaBancariaId: emptyStringToNull(formData.cuentaBancariaId),
-        };
+    const chequeData = {
+      monto: parseFloat(formData.monto),
+      numeroCheque: formData.numeroCheque,
+      fechaEmision: formData.fechaEmision,
+      fechaCobro: formData.fechaCobro,
+      terceroNombre: formData.terceroNombre,
+      tipoChequeNombre: formData.tipoChequeNombre,
+      estadoChequeNombre: formData.estadoChequeNombre,
 
-        // 3. LLAMADA POST A LA API USANDO AXIOS
-        try {
-            const response = await axios.post(`${apiUrl}/cheques`, chequeData);
-            
-            // Éxito:
-            setSuccess(`Cheque #${response.data.numeroCheque} registrado con éxito. ID: ${response.data.id}`);
-            
-            // Opcional: Limpiar el formulario o redirigir
-            setFormData({
-                // Resetear el formulario a sus valores por defecto
-                tipoChequeNombre: TIPO_CHEQUE.RECIBIDO,
-                monto: '',
-                numeroCheque: '',
-                fechaEmision: '',
-                fechaCobro: '',
-                terceroNombre: '',
-                bancoTercerosId: '', 
-                cuentaBancariaId: '',
-                estadoChequeNombre: ESTADO_CHEQUE.PENDIENTE,
-            });
+      // 💡 APLICACIÓN DE LA LIMPIEZA:
+      bancoTercerosId: emptyStringToNull(formData.bancoTercerosId),
+      cuentaBancariaId: emptyStringToNull(formData.cuentaBancariaId),
+    };
 
-        } catch (err) {
-            console.error("Error al guardar cheque:", err);
-            
-            if (err.response || err.request) {
-                setError("Error interno del servidor al guardar el cheque. Por favor, contacte a soporte.");
-            } else {
-                // Errores de JavaScript/código local
-                setError("Ocurrió un error inesperado en la aplicación.");
-            }
-        }
+    // 3. LLAMADA POST A LA API USANDO AXIOS
+    try {
+      const response = await axios.post(`${apiUrl}/cheques`, chequeData);
+
+      // Éxito:
+      setSuccess(`Cheque #${response.data.numeroCheque} registrado con éxito. ID: ${response.data.id}`);
+
+      // Opcional: Limpiar el formulario o redirigir
+      setFormData({
+        // Resetear el formulario a sus valores por defecto
+        tipoChequeNombre: TIPO_CHEQUE.RECIBIDO,
+        monto: '',
+        numeroCheque: '',
+        fechaEmision: '',
+        fechaCobro: '',
+        terceroNombre: '',
+        bancoTercerosId: '',
+        cuentaBancariaId: '',
+        estadoChequeNombre: ESTADO_CHEQUE.PENDIENTE,
+      });
+
+    } catch (err) {
+      console.error("Error al guardar cheque:", err);
+
+      if (err.response || err.request) {
+        setError("Error interno del servidor al guardar el cheque. Por favor, contacte a soporte.");
+      } else {
+        // Errores de JavaScript/código local
+        setError("Ocurrió un error inesperado en la aplicación.");
+      }
+    }
     // Se elimina el setSuccess duplicado
   };
 
@@ -247,21 +256,21 @@ export const ChequesForm = () => {
   // Pantalla de Carga
   if (isFormLoading) {
     return (
-        <div className="max-w-4xl mx-auto p-6 bg-white rounded-xl shadow-lg text-center">
-            <Loader2 className="w-8 h-8 text-blue-500 animate-spin inline-block mr-2" />
-            <p className="text-gray-600">Cargando datos del cheque y dependencias...</p>
-        </div>
+      <div className="max-w-4xl mx-auto p-6 bg-white rounded-xl shadow-lg text-center">
+        <Loader2 className="w-8 h-8 text-blue-500 animate-spin inline-block mr-2" />
+        <p className="text-gray-600">Cargando datos del cheque y dependencias...</p>
+      </div>
     );
   }
 
   // Pantalla de Error en Visualización
   if (isViewing && error) {
-      return (
-          <div className="max-w-4xl mx-auto p-6 bg-red-100 border border-red-400 text-red-700 rounded-lg flex items-center">
-              <X className="w-5 h-5 mr-2" />
-              Error al cargar el detalle del cheque: {error}
-          </div>
-      );
+    return (
+      <div className="max-w-4xl mx-auto p-6 bg-red-100 border border-red-400 text-red-700 rounded-lg flex items-center">
+        <X className="w-5 h-5 mr-2" />
+        Error al cargar el detalle del cheque: {error}
+      </div>
+    );
   }
 
 
@@ -271,7 +280,7 @@ export const ChequesForm = () => {
         <CreditCard className="w-8 h-8 text-blue-600" />
         <h1 className="text-2xl font-bold text-gray-900">
           {/* 💡 MODIFICACION: Título condicional */}
-          {isViewing ? 'Detalle de Cheque' : 'Dar de Alta Cheque'} 
+          {isViewing ? 'Detalle de Cheque' : 'Dar de Alta Cheque'}
           {!isViewing && ` ${isRecibido ? '(RECIBIDO)' : '(EMITIDO)'}`}
         </h1>
       </div>
@@ -385,22 +394,43 @@ export const ChequesForm = () => {
           {isRecibido && (
             <div>
               <label htmlFor="bancoTercerosId" className="block text-sm font-medium text-gray-700">Banco de Terceros (Emisor) *</label>
-              <select
-                name="bancoTercerosId"
-                id="bancoTercerosId"
-                value={formData.bancoTercerosId}
-                onChange={handleChange}
-                required={isRecibido && !isViewing} // 💡 Solo requerido en modo creación
-                disabled={isViewing} // 💡 APLICACION: Select deshabilitado
-                className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border bg-white ${isViewing ? 'bg-gray-100 text-gray-800 opacity-80' : ''}`}
-              >
-                <option value="">-- Seleccione un banco tercero --</option>
-                {bancosTerceros.map(b => (
-                  <option key={b.id} value={b.id}>
-                    {b.nombre} 
-                  </option>
-                ))}
-              </select>
+
+              {/* 💡 MODIFICACION: Contenedor flex para el select y el botón */}
+              <div className="mt-1 flex space-x-2">
+
+                {/* 1. SELECT (Ocupa todo el espacio disponible) */}
+                <select
+                  name="bancoTercerosId"
+                  id="bancoTercerosId"
+                  value={formData.bancoTercerosId}
+                  onChange={handleChange}
+                  required={isRecibido && !isViewing}
+                  disabled={isViewing}
+                  // Nota: Se elimina w-full del select y se deja que flex lo maneje, 
+                  // pero se asegura que crezca con 'w-full' o 'flex-grow'
+                  className={`block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border bg-white ${isViewing ? 'bg-gray-100 text-gray-800 opacity-80' : ''}`}
+                >
+                  <option value="">-- Seleccione un banco tercero --</option>
+                  {bancosTerceros.map(b => (
+                    <option key={b.id} value={b.id}>
+                      {b.nombre}
+                    </option>
+                  ))}
+                </select>
+
+                {/* 2. NUEVO BOTÓN para abrir el modal */}
+                <button
+                  type="button"
+                  // 💡 LLAMADA AL ESTADO para abrir el modal
+                  onClick={() => setIsModalOpen(true)}
+                  disabled={isViewing}
+                  className="flex items-center justify-center p-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none disabled:opacity-50"
+                  title="Crear nuevo Banco de Terceros"
+                >
+                  {/* Asumiendo que CreditCard ya está importado de 'lucide-react' */}
+                  <CreditCard size={18} />
+                </button>
+              </div>
               <p className="mt-1 text-xs text-gray-500">
                 Banco que emite el cheque.
               </p>
@@ -468,15 +498,15 @@ export const ChequesForm = () => {
           </div>
           {/* ID del Cheque (Solo visible en modo visualización) */}
           {isViewing && (
-              <div className='hidden'>
-                <label className="block text-sm font-medium text-gray-700">ID del Cheque</label>
-                <input
-                    type="text"
-                    value={chequeId}
-                    readOnly
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border bg-gray-100 text-gray-800"
-                />
-              </div>
+            <div className='hidden'>
+              <label className="block text-sm font-medium text-gray-700">ID del Cheque</label>
+              <input
+                type="text"
+                value={chequeId}
+                readOnly
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border bg-gray-100 text-gray-800"
+              />
+            </div>
           )}
         </div>
 
@@ -489,7 +519,7 @@ export const ChequesForm = () => {
           >
             {isViewing ? 'Cerrar' : 'Cancelar'} {/* 💡 Texto condicional */}
           </button>
-          
+
           {/* 💡 MODIFICACION: Solo mostrar el botón "Guardar" en modo CREACIÓN */}
           {!isViewing && (
             <button
@@ -501,6 +531,14 @@ export const ChequesForm = () => {
           )}
         </div>
       </form>
+
+      <CrearBancoTerceroModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSuccess={handleNewBancoSuccess} // Refresca la lista y cierra el modal
+      />
+
     </div>
+
   );
 };
