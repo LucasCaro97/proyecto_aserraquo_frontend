@@ -14,7 +14,8 @@ import {
     ArrowUp,
     ArrowDown,
     ArrowUpDown,
-    CornerUpRight // Icono representativo para egresos
+    CornerUpRight, // Icono representativo para egresos
+    Wallet // Nuevo Icono para Cheques
 } from 'lucide-react';
 import { useUsuario } from '../hooks/useUsuario';
 import { obtenerDiaDeLaSemana } from '../hooks/obtenerDiaDeLaSemana';
@@ -56,6 +57,7 @@ export const EgresosTable = ({ onEdit, onView }) => {
         setError('');
 
         try {
+            // Nota: Se asume que el backend devuelve el campo 'chequeResumen' en cada egreso
             const response = await axios.get(`${apiUrl}/egreso`);
             setTodosLosEgresos(response.data.data || response.data);
         } catch (error) {
@@ -199,13 +201,14 @@ export const EgresosTable = ({ onEdit, onView }) => {
             const datosParaExportar = datosOrdenados; // Usar datos filtrados y ordenados
 
             const csvContent = "data:text/csv;charset=utf-8," + 
-                "Fecha,Día,Monto,Tipo de Egreso,Usuario,Observación\n" +
+                "Fecha,Día,Monto,Tipo de Egreso,Usuario,Cheques Vinculados,Observación\n" +
                 datosParaExportar.map(egreso => 
                     `${formatearFecha(egreso.registroFinancieroDiario?.fecha)},` +
                     `${obtenerDiaDeLaSemana(egreso.registroFinancieroDiario?.fecha)},` +
                     `${egreso.monto},` +
                     `"${egreso.tipoEgreso?.nombre || 'N/A'}",` +
                     `"${egreso.usuario?.nombre || 'N/A'}",` +
+                    `"${egreso.chequeResumen?.map(c => c.nroCheque || c.id).join('; ') || 'Ninguno'}",` + // Exportar cheques, usando nroCheque o ID
                     `"${egreso.observacion || ''}"`
                 ).join("\n");
 
@@ -238,6 +241,42 @@ export const EgresosTable = ({ onEdit, onView }) => {
             currency: 'ARS',
             minimumFractionDigits: 2
         }).format(valor);
+    };
+    
+    // Función MODIFICADA para renderizar los cheques
+    const renderCheques = (cheques) => {
+        // Usamos chequeResumen
+        if (!cheques || cheques.length === 0) {
+            return (
+                <span className="text-xs text-gray-500 flex items-center">
+                    <Wallet className="h-3 w-3 mr-1" /> Ninguno
+                </span>
+            );
+        }
+
+        // Mostrar solo los primeros 3 números de cheque
+        const chequesVisibles = cheques.slice(0, 3);
+        const chequesRestantes = cheques.length - 3;
+        
+        return (
+            <div className="flex flex-col space-y-1">
+                {chequesVisibles.map((cheque) => (
+                    // Renderizamos el nroCheque. Si es null, usamos el ID.
+                    <span 
+                        key={cheque.id} 
+                        className="text-sm font-medium text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full inline-block"
+                        title={`Monto: ${formatearMoneda(cheque.monto)}`} // Tooltip para ver el monto
+                    >
+                        {cheque.numeroCheque || `ID: ${cheque.id}`}
+                    </span>
+                ))}
+                {chequesRestantes > 0 && (
+                    <span className="text-xs text-gray-500 mt-1">
+                        + {chequesRestantes} más
+                    </span>
+                )}
+            </div>
+        );
     };
 
     // Cálculos de paginación
@@ -486,6 +525,14 @@ export const EgresosTable = ({ onEdit, onView }) => {
                                                     {renderIconoOrden('usuario')}
                                                 </div>
                                             </th>
+                                            {/* NUEVA COLUMNA AÑADIDA: Cheques */}
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                <div className="flex items-center space-x-1">
+                                                    <Wallet className="h-4 w-4" />
+                                                    <span>Cheques Vinculados</span>
+                                                </div>
+                                            </th>
+                                            {/* FIN NUEVA COLUMNA */}
                                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                                 <div className="flex items-center space-x-1">
                                                     <FileText className="h-4 w-4" />
@@ -527,6 +574,12 @@ export const EgresosTable = ({ onEdit, onView }) => {
                                                         </div>
                                                     </div>
                                                 </td>
+                                                {/* CELDA DE CHEQUES */}
+                                                <td className="px-6 py-4">
+                                                    {/* Ahora usamos chequeResumen, que es el nombre de tu DTO */}
+                                                    {renderCheques(egreso.chequeResumen)}
+                                                </td>
+                                                {/* FIN CELDA DE CHEQUES */}
                                                 <td className="px-6 py-4">
                                                     <div className="text-sm text-gray-900 max-w-xs truncate">
                                                         {egreso.observacion || '-'}
@@ -610,4 +663,5 @@ export const EgresosTable = ({ onEdit, onView }) => {
                 </div>
             </div>
         </div>
-    )};
+    );
+};

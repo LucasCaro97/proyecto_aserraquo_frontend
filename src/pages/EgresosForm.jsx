@@ -1,9 +1,15 @@
-import { useState, useEffect } from 'react';
-import { DollarSign, FileText, User, Save, ArrowLeft, AlertCircle, CheckCircle, Plus, Eye, EyeOff, ListPlus, TrendingDown, Star } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react'; // Agregué useCallback
+import { 
+    DollarSign, FileText, User, Save, ArrowLeft, AlertCircle, CheckCircle, 
+    Plus, Eye, EyeOff, ListPlus, TrendingDown, Star, CreditCard, Banknote, ClipboardCheck
+} from 'lucide-react';
 import { useUsuario } from '../hooks/useUsuario';
 import { useRegistrosFinancieros } from '../hooks/useRegistrosFinancieros';
 import { obtenerDiaDeLaSemana } from '../hooks/obtenerDiaDeLaSemana';
 import axios from 'axios';
+
+// Definimos un valor Epsilon (tolerancia) para comparaciones de punto flotante.
+const EPSILON = 0.000001; 
 
 export const EgresosForm = ({ onBack, onSuccess }) => {
     // Estados del formulario de Tipo de Egreso
@@ -15,20 +21,38 @@ export const EgresosForm = ({ onBack, onSuccess }) => {
     const [observacionEgreso, setObservacionEgreso] = useState('');
     const [tipoEgresoSeleccionado, setTipoEgresoSeleccionado] = useState('');
     const [registroFinancieroDiario, setRegistroFinancieroDiario] = useState('');
+    const [metodoPagoSeleccionado, setMetodoPagoSeleccionado] = useState(''); 
+    
+    // Estados del formulario de Método de Pago
+    const [nombreMetodoPago, setNombreMetodoPago] = useState(''); 
+
+    // --- ESTADOS PARA GESTIÓN DE CHEQUES ---
+    const [chequesDisponibles, setChequesDisponibles] = useState([]);
+    const [isLoadingCheques, setIsLoadingCheques] = useState(false);
+    const [chequesSeleccionados, setChequesSeleccionados] = useState([]); // Array de IDs de cheques
+    // ELIMINADO: const [chequeMetodoId, setChequeMetodoId] = useState(null); // YA NO ES NECESARIO
+    // ---------------------------------------------
 
     // Estados para las tablas de últimos registros
     const [ultimosTiposEgreso, setUltimosTiposEgreso] = useState([]);
     const [ultimosEgresos, setUltimosEgresos] = useState([]);
+    const [ultimosMetodosPago, setUltimosMetodosPago] = useState([]); 
+    
     const [isLoadingUltimosTiposEgreso, setIsLoadingUltimosTiposEgreso] = useState(false);
     const [isLoadingUltimosEgresos, setIsLoadingUltimosEgresos] = useState(false);
+    const [isLoadingUltimosMetodosPago, setIsLoadingUltimosMetodosPago] = useState(false); 
+    
     const [mostrarTablaTipos, setMostrarTablaTipos] = useState(true);
     const [mostrarTablaEgresos, setMostrarTablaEgresos] = useState(true);
+    const [mostrarTablaMetodosPago, setMostrarTablaMetodosPago] = useState(true); 
 
     // Estados para tipos de egreso y prioridades disponibles
     const [tiposEgresoDisponibles, setTiposEgresoDisponibles] = useState([]);
     const [prioridadesDisponibles, setPrioridadesDisponibles] = useState([]);
+    const [metodosPagoDisponibles, setMetodosPagoDisponibles] = useState([]); 
     const [isLoadingTiposEgreso, setIsLoadingTiposEgreso] = useState(false);
     const [isLoadingPrioridades, setIsLoadingPrioridades] = useState(false);
+    const [isLoadingMetodosPago, setIsLoadingMetodosPago] = useState(false); 
 
     // Variables
     const apiUrl = import.meta.env.VITE_API_URL;
@@ -36,10 +60,12 @@ export const EgresosForm = ({ onBack, onSuccess }) => {
     // Estados de UI
     const [isLoadingTipoEgreso, setIsLoadingTipoEgreso] = useState(false);
     const [isLoadingEgreso, setIsLoadingEgreso] = useState(false);
+    const [isLoadingMetodoPago, setIsLoadingMetodoPago] = useState(false); 
+    
     const [isCreatingRegistro, setIsCreatingRegistro] = useState(false);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
-    const [activeTab, setActiveTab] = useState('egreso'); // 'egreso' o 'tipoEgreso'
+    const [activeTab, setActiveTab] = useState('egreso');
 
     // Hook personalizado para obtener el usuario del token
     const { usuario } = useUsuario();
@@ -52,7 +78,21 @@ export const EgresosForm = ({ onBack, onSuccess }) => {
         crearRegistroDelDia,
     } = useRegistrosFinancieros();
 
-    // Función para cargar los últimos 10 tipos de egreso
+    // =========================================================
+    // NUEVA FUNCIÓN DINÁMICA: Determina si el método es de tipo Cheque
+    // =========================================================
+    const esMetodoCheque = useCallback((metodoId) => {
+        if (!metodoId) return false;
+        // Buscamos el objeto del método de pago por su ID
+        const metodo = metodosPagoDisponibles.find(m => m.id.toString() === metodoId);
+        
+        // Verificamos si el método existe y si su nombre contiene "cheque" (insensible a mayúsculas)
+        return metodo && metodo.nombre.toLowerCase().includes('cheque');
+    }, [metodosPagoDisponibles]);
+    // =========================================================
+
+    // --- FUNCIONES DE CARGA DE DATOS ---
+
     const cargarUltimosTiposEgreso = async () => {
         setIsLoadingUltimosTiposEgreso(true);
         try {
@@ -68,7 +108,6 @@ export const EgresosForm = ({ onBack, onSuccess }) => {
         }
     };
 
-    // Función para cargar los últimos 10 egresos
     const cargarUltimosEgresos = async () => {
         setIsLoadingUltimosEgresos(true);
         try {
@@ -84,7 +123,34 @@ export const EgresosForm = ({ onBack, onSuccess }) => {
         }
     };
 
-    // Función para cargar tipos de egreso disponibles
+    const cargarUltimosMetodosPago = async () => {
+        setIsLoadingUltimosMetodosPago(true);
+        try {
+            const response = await axios.get(`${apiUrl}/medio-de-pago`);
+            
+            setTimeout(() => {
+                setUltimosMetodosPago(response.data); 
+                setIsLoadingUltimosMetodosPago(false);
+            }, 300);
+        } catch (error) {
+            console.error('Error al cargar últimos métodos de pago:', error);
+            setIsLoadingUltimosMetodosPago(false);
+        }
+    };
+
+    const cargarMetodosPagoDisponibles = async () => {
+        setIsLoadingMetodosPago(true);
+        try {
+            const response = await axios.get(`${apiUrl}/medio-de-pago`); 
+            setMetodosPagoDisponibles(response.data);
+        } catch (error) {
+            console.error('Error al cargar métodos de pago disponibles:', error);
+        } finally {
+            setIsLoadingMetodosPago(false);
+        }
+    };
+
+
     const cargarTiposEgresoDisponibles = async () => {
         setIsLoadingTiposEgreso(true);
         try {
@@ -97,7 +163,6 @@ export const EgresosForm = ({ onBack, onSuccess }) => {
         }
     };
 
-    // Función para cargar prioridades disponibles
     const cargarPrioridadesDisponibles = async () => {
         setIsLoadingPrioridades(true);
         try {
@@ -110,16 +175,69 @@ export const EgresosForm = ({ onBack, onSuccess }) => {
         }
     };
 
-    // Cargar datos cuando el usuario esté disponible
+    // --- FUNCIÓN PARA CARGAR CHEQUES PENDIENTES ---
+    const cargarChequesDisponibles = async () => {
+        setIsLoadingCheques(true);
+        setError('');
+        setChequesDisponibles([]); 
+
+        try {
+            // Asumiendo un endpoint para cheques pendientes de un egreso
+            const response = await axios.get(`${apiUrl}/cheques`); 
+            
+            setTimeout(() => {
+                setChequesDisponibles(response.data);
+                setIsLoadingCheques(false);
+            }, 300);
+        } catch (error) {
+            console.error('Error al cargar cheques disponibles:', error);
+            setError('Error al cargar los cheques. Asegúrate que el endpoint /cheque/pendientes esté disponible.');
+            setIsLoadingCheques(false);
+        }
+    };
+    // ---------------------------------------------------
+
+    // Cargar datos al iniciar
     useEffect(() => {
         if (usuario?.id) {
             cargarUltimosTiposEgreso();
             cargarUltimosEgresos();
+            cargarUltimosMetodosPago(); 
             cargarTiposEgresoDisponibles();
             cargarPrioridadesDisponibles();
+            cargarMetodosPagoDisponibles(); 
             cargarRegistrosFinancieros();
         }
     }, [usuario]);
+
+    // --- EFECTO PARA CARGAR CHEQUES PENDIENTES BASADO EN EL NOMBRE ---
+    useEffect(() => {
+        const isChequeSelected = esMetodoCheque(metodoPagoSeleccionado);
+        
+        // 1. Cargar cheques si un método que incluye "cheque" está seleccionado
+        if (activeTab === 'egreso' && isChequeSelected) {
+            cargarChequesDisponibles();
+        } else if (!isChequeSelected) {
+            // 2. Limpiar si se selecciona otro método
+            setChequesDisponibles([]);
+            setChequesSeleccionados([]);
+        }
+    }, [metodoPagoSeleccionado, activeTab, esMetodoCheque]); // esMetodoCheque se agregó a las dependencias porque usa metodosPagoDisponibles
+    
+    // --- HANDLER DE SELECCIÓN DE CHEQUES ---
+    const handleChequeSelection = (chequeId) => {
+        // Asegurarse de que el ID sea string para la comparación consistente
+        const idString = chequeId.toString(); 
+
+        setChequesSeleccionados(prev => 
+            prev.includes(idString)
+                ? prev.filter(id => id !== idString) // Deseleccionar
+                : [...prev, idString] // Seleccionar
+        );
+    };
+    // ----------------------------------------
+
+    // --- HANDLERS DE FORMULARIO ---
 
     const handleCrearRegistroDelDia = async () => {
         setIsCreatingRegistro(true);
@@ -177,7 +295,6 @@ export const EgresosForm = ({ onBack, onSuccess }) => {
                 cargarUltimosTiposEgreso();
                 cargarTiposEgresoDisponibles();
 
-                // Callback de éxito si se proporciona
                 if (onSuccess) {
                     setTimeout(() => onSuccess(), 1500);
                 }
@@ -193,7 +310,7 @@ export const EgresosForm = ({ onBack, onSuccess }) => {
     const handleSubmitEgreso = async (e) => {
         e.preventDefault();
 
-        // Validaciones
+        // 1. Validaciones básicas
         if (!montoEgreso || parseFloat(montoEgreso) <= 0) {
             setError('El monto del egreso debe ser un número válido mayor a 0');
             return;
@@ -201,6 +318,11 @@ export const EgresosForm = ({ onBack, onSuccess }) => {
 
         if (!tipoEgresoSeleccionado) {
             setError('Debe seleccionar un tipo de egreso');
+            return;
+        }
+
+        if (!metodoPagoSeleccionado) {
+            setError('Debe seleccionar un método de pago');
             return;
         }
 
@@ -213,6 +335,30 @@ export const EgresosForm = ({ onBack, onSuccess }) => {
             setError('Error: No se pudo obtener la información del usuario');
             return;
         }
+        
+        const montoEgresoFloat = parseFloat(montoEgreso);
+        const isChequeMethod = esMetodoCheque(metodoPagoSeleccionado); // <-- USO DINÁMICO
+
+        // 2. Validación de cheques (solo si es un método de cheque)
+        if (isChequeMethod) {
+            if (chequesSeleccionados.length === 0) {
+                setError('Debe seleccionar al menos un cheque para vincular a este egreso.');
+                return;
+            }
+
+            // Cálculo del total de cheques seleccionados
+            const totalCheques = chequesSeleccionados.reduce((sum, id) => {
+                const cheque = chequesDisponibles.find(c => c.id.toString() === id);
+                return sum + (cheque ? cheque.monto : 0);
+            }, 0);
+            
+            // 3. Validación de monto vs cheques seleccionados usando EPSILON
+            if (Math.abs(totalCheques - montoEgresoFloat) > EPSILON) {
+                 setError(`El monto del egreso (${formatearMoneda(montoEgresoFloat)}) no coincide con el total de los cheques seleccionados (${formatearMoneda(totalCheques)}). Por favor, ajuste el monto o la selección de cheques.`);
+                 return;
+            }
+        }
+
 
         setIsLoadingEgreso(true);
         setError('');
@@ -220,28 +366,34 @@ export const EgresosForm = ({ onBack, onSuccess }) => {
 
         try {
             const nuevoEgreso = {
-                monto: parseFloat(montoEgreso),
+                monto: montoEgresoFloat,
                 idTipoEgreso: parseInt(tipoEgresoSeleccionado),
                 idRegistroDiario: parseInt(registroFinancieroDiario),
                 idUsuario: usuario.id,
-                observacion: observacionEgreso.trim()
+                observacion: observacionEgreso.trim(),
+                idMedioDePago: parseInt(metodoPagoSeleccionado),
+                // CAMPO CONDICIONAL: Enviar IDs de cheques si se detecta dinámicamente el método
+                idChequesVinculados: isChequeMethod ? chequesSeleccionados.map(id => parseInt(id)) : [],
             };
 
             const response = await axios.post(`${apiUrl}/egreso`, nuevoEgreso);
             
             setTimeout(() => {
                 setSuccess('Egreso registrado exitosamente');
-                // Limpiar formulario
+                // Limpiar formulario y estados de cheque
                 setMontoEgreso('');
                 setObservacionEgreso('');
                 setTipoEgresoSeleccionado('');
                 setRegistroFinancieroDiario('');
+                setMetodoPagoSeleccionado(''); 
+                setChequesSeleccionados([]); // Limpiar cheques seleccionados
+                setChequesDisponibles([]); // Limpiar cheques disponibles
+
                 setIsLoadingEgreso(false);
 
                 // Recargar la tabla de últimos egresos
                 cargarUltimosEgresos();
                 
-                // Callback de éxito si se proporciona
                 if (onSuccess) {
                     setTimeout(() => onSuccess(), 1500);
                 }
@@ -253,6 +405,51 @@ export const EgresosForm = ({ onBack, onSuccess }) => {
             setIsLoadingEgreso(false);
         }
     };
+
+    const handleSubmitMetodoPago = async (e) => {
+        e.preventDefault();
+
+        // Validaciones
+        if (!nombreMetodoPago.trim()) {
+            setError('El nombre del método de pago es requerido');
+            return;
+        }
+
+        setIsLoadingMetodoPago(true);
+        setError('');
+        setSuccess('');
+
+        try {
+            const nuevoMetodoPago = {
+                nombre: nombreMetodoPago.trim(),
+                estado: true
+            };
+
+            const response = await axios.post(`${apiUrl}/medio-de-pago`, nuevoMetodoPago); 
+            
+            setTimeout(() => {
+                setSuccess('Método de pago registrado exitosamente');
+                // Limpiar formulario
+                setNombreMetodoPago('');
+                setIsLoadingMetodoPago(false);
+
+                // Recargar las listas de métodos de pago
+                cargarUltimosMetodosPago(); 
+                cargarMetodosPagoDisponibles(); 
+
+                if (onSuccess) {
+                    setTimeout(() => onSuccess(), 1500);
+                }
+            }, 1000);
+
+        } catch (error) {
+            console.error('Error al registrar método de pago:', error);
+            setError(error.response?.data?.errorMessage || 'Error al registrar el método de pago. Inténtalo de nuevo.');
+            setIsLoadingMetodoPago(false);
+        }
+    };
+
+    // --- FUNCIONES DE UTILIDAD ---
 
     const handleMoneyChange = (e, setter) => {
         const value = e.target.value;
@@ -340,6 +537,7 @@ export const EgresosForm = ({ onBack, onSuccess }) => {
                         <div className="mb-6">
                             <div className="border-b border-gray-200">
                                 <nav className="flex space-x-8">
+                                    {/* Tab: Nuevo Egreso */}
                                     <button
                                         onClick={() => setActiveTab('egreso')}
                                         className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
@@ -353,6 +551,7 @@ export const EgresosForm = ({ onBack, onSuccess }) => {
                                             <span>Nuevo Egreso</span>
                                         </div>
                                     </button>
+                                    {/* Tab: Nuevo Tipo de Egreso */}
                                     <button
                                         onClick={() => setActiveTab('tipoEgreso')}
                                         className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
@@ -366,10 +565,25 @@ export const EgresosForm = ({ onBack, onSuccess }) => {
                                             <span>Nuevo Tipo de Egreso</span>
                                         </div>
                                     </button>
+                                    {/* Tab: Nuevo Método de Pago */}
+                                    <button
+                                        onClick={() => setActiveTab('metodoPago')}
+                                        className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                                            activeTab === 'metodoPago'
+                                                ? 'border-blue-500 text-blue-600'
+                                                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                                        }`}
+                                    >
+                                        <div className="flex items-center space-x-2">
+                                            <CreditCard className="h-4 w-4" />
+                                            <span>Nuevo Método de Pago</span>
+                                        </div>
+                                    </button>
                                 </nav>
                             </div>
                         </div>
-                        {/* Formulario de Egreso */}
+                        
+                        {/* 1. Formulario de Egreso */}
                         {activeTab === 'egreso' && (
                             <div className="space-y-6">
                                 {/* Campo Monto */}
@@ -422,6 +636,106 @@ export const EgresosForm = ({ onBack, onSuccess }) => {
                                         </select>
                                     </div>
                                 </div>
+
+                                {/* Campo Método de Pago */}
+                                <div>
+                                    <label htmlFor="metodoPagoSeleccionado" className="block text-sm font-medium text-gray-700 mb-2">
+                                        Método de Pago *
+                                    </label>
+                                    <div className="relative">
+                                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                            <CreditCard className="h-5 w-5 text-gray-400" />
+                                        </div>
+                                        <select
+                                            id="metodoPagoSeleccionado"
+                                            value={metodoPagoSeleccionado}
+                                            onChange={(e) => setMetodoPagoSeleccionado(e.target.value)}
+                                            className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                                            required
+                                        >
+                                            <option value="" disabled>Seleccione un método de pago</option>
+                                            {isLoadingMetodosPago ? (
+                                                <option disabled>Cargando...</option>
+                                            ) : (
+                                                metodosPagoDisponibles.map((metodo) => (
+                                                    <option key={metodo.id} value={metodo.id}>
+                                                        {metodo.nombre}
+                                                    </option>
+                                                ))
+                                            )}
+                                        </select>
+                                    </div>
+                                </div>
+                                
+                                {/* --- SECCIÓN CONDICIONAL PARA CHEQUES (VALIDACIÓN DINÁMICA) --- */}
+                                {esMetodoCheque(metodoPagoSeleccionado) && ( // <-- VALIDACIÓN CLAVE AQUÍ
+                                    <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 shadow-inner">
+                                        <h3 className="flex items-center text-lg font-semibold text-gray-800 mb-3">
+                                            <ClipboardCheck className="h-5 w-5 mr-2 text-blue-600" />
+                                            Vincular Cheques
+                                        </h3>
+                                        
+                                        {isLoadingCheques ? (
+                                            <div className="text-center py-4">
+                                                <svg className="animate-spin h-6 w-6 text-blue-500 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                </svg>
+                                                <p className="mt-2 text-sm text-gray-500">Cargando cheques disponibles...</p>
+                                            </div>
+                                        ) : chequesDisponibles.length === 0 ? (
+                                            <p className="text-center text-sm text-gray-500 py-4">No hay cheques pendientes disponibles para vincular.</p>
+                                        ) : (
+                                            <div className="space-y-2 max-h-48 overflow-y-auto pr-2">
+                                                {chequesDisponibles.map((cheque) => (
+                                                    <div 
+                                                        key={cheque.id} 
+                                                        className={`flex items-center justify-between p-3 rounded-lg cursor-pointer transition-colors ${
+                                                            chequesSeleccionados.includes(cheque.id.toString())
+                                                                ? 'bg-blue-100 border-l-4 border-blue-500'
+                                                                : 'bg-white hover:bg-gray-100 border border-gray-200'
+                                                        }`}
+                                                        onClick={() => handleChequeSelection(cheque.id)}
+                                                    >
+                                                        <div className="flex items-center space-x-3">
+                                                            <input
+                                                                id={`cheque-${cheque.id}`}
+                                                                type="checkbox"
+                                                                checked={chequesSeleccionados.includes(cheque.id.toString())}
+                                                                onChange={() => handleChequeSelection(cheque.id)}
+                                                                className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                                            />
+                                                            <label htmlFor={`cheque-${cheque.id}`} className="text-sm font-medium text-gray-900 flex-1">
+                                                                Cheque N° **{cheque.numeroCheque || 'N/A'}**
+                                                                <span className="block text-xs text-gray-500">
+                                                                    Vence: {formatearFecha(cheque.fechaVencimiento || '')}
+                                                                </span>
+                                                            </label>
+                                                        </div>
+                                                        <span className="text-sm font-bold text-green-700 flex-shrink-0">
+                                                            {formatearMoneda(cheque.monto)}
+                                                        </span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                        
+                                        {chequesDisponibles.length > 0 && (
+                                            <div className="mt-3 pt-3 border-t border-gray-200 flex justify-between items-center">
+                                                <span className="text-sm font-semibold text-gray-700">Total Cheques Seleccionados:</span>
+                                                <span className="text-lg font-bold text-blue-600">
+                                                    {formatearMoneda(
+                                                        chequesSeleccionados.reduce((sum, id) => {
+                                                            const cheque = chequesDisponibles.find(c => c.id.toString() === id);
+                                                            return sum + (cheque ? cheque.monto : 0);
+                                                        }, 0)
+                                                    )}
+                                                </span>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                                {/* --- FIN SECCIÓN CONDICIONAL PARA CHEQUES --- */}
 
                                 {/* Campo Registro Financiero Diario */}
                                 <div>
@@ -515,8 +829,9 @@ export const EgresosForm = ({ onBack, onSuccess }) => {
                                 </div>
                             </div>
                         )}
-
-                        {/* Formulario de Tipo de Egreso */}
+                        {/* ... (el resto del código de formularios y tablas es el mismo) ... */}
+                        
+                        {/* 2. Formulario de Tipo de Egreso */}
                         {activeTab === 'tipoEgreso' && (
                             <div className="space-y-6">
                                 {/* Campo Nombre del Tipo de Egreso */}
@@ -592,6 +907,59 @@ export const EgresosForm = ({ onBack, onSuccess }) => {
                                             <>
                                                 <Save className="h-5 w-5 mr-2" />
                                                 Guardar Tipo de Egreso
+                                            </>
+                                        )}
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+                        
+                        {/* 3. Formulario de Método de Pago */}
+                        {activeTab === 'metodoPago' && (
+                            <div className="space-y-6">
+                                {/* Campo Nombre del Método de Pago */}
+                                <div>
+                                    <label htmlFor="nombreMetodoPago" className="block text-sm font-medium text-gray-700 mb-2">
+                                        Nombre del Método de Pago *
+                                    </label>
+                                    <div className="relative">
+                                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                            <CreditCard className="h-5 w-5 text-gray-400" />
+                                        </div>
+                                        <input
+                                            id="nombreMetodoPago"
+                                            type="text"
+                                            value={nombreMetodoPago}
+                                            onChange={(e) => setNombreMetodoPago(e.target.value)}
+                                            className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                                            placeholder="Ej: Efectivo, Tarjeta de Crédito, Transferencia"
+                                            required
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Botón de Guardar */}
+                                <div className="pt-4">
+                                    <button
+                                        type="submit"
+                                        onClick={handleSubmitMetodoPago}
+                                        className={`w-full flex items-center justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white transition-colors ${
+                                            isLoadingMetodoPago ? 'bg-blue-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500'
+                                        }`}
+                                        disabled={isLoadingMetodoPago}
+                                    >
+                                        {isLoadingMetodoPago ? (
+                                            <>
+                                                <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                </svg>
+                                                Guardando...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Save className="h-5 w-5 mr-2" />
+                                                Guardar Método de Pago
                                             </>
                                         )}
                                     </button>
@@ -737,6 +1105,70 @@ export const EgresosForm = ({ onBack, onSuccess }) => {
                                             <div className="mt-4 text-center">
                                                 <button
                                                     onClick={cargarUltimosTiposEgreso}
+                                                    className="text-sm text-blue-600 hover:text-blue-800 hover:underline transition-colors"
+                                                >
+                                                    Actualizar lista
+                                                </button>
+                                            </div>
+                                        )}
+                                    </>
+                                )}
+                            </div>
+                        )}
+                        
+                        {/* Tabla de Últimos Métodos de Pago */}
+                        {activeTab === 'metodoPago' && (
+                            <div className="bg-white rounded-xl shadow-md p-6">
+                                <div className="flex justify-between items-center mb-4">
+                                    <h2 className="text-xl font-semibold text-gray-800">Últimos Métodos de Pago</h2>
+                                    <button
+                                        onClick={() => setMostrarTablaMetodosPago(!mostrarTablaMetodosPago)}
+                                        className="p-2 text-gray-600 hover:text-gray-800 transition-colors"
+                                    >
+                                        {mostrarTablaMetodosPago ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                                    </button>
+                                </div>
+                                {isLoadingUltimosMetodosPago ? (
+                                    <div className="text-center py-10">
+                                        <svg className="animate-spin h-8 w-8 text-blue-500 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                        </svg>
+                                        <p className="mt-2 text-sm text-gray-500">Cargando métodos de pago...</p>
+                                    </div>
+                                ) : (
+                                    <>
+                                        {mostrarTablaMetodosPago && ultimosMetodosPago.length > 0 ? (
+                                            <div className="overflow-x-auto">
+                                                <table className="min-w-full divide-y divide-gray-200">
+                                                    <thead className="bg-gray-50">
+                                                        <tr>
+                                                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                                Nombre
+                                                            </th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody className="bg-white divide-y divide-gray-200">
+                                                        {ultimosMetodosPago.map((metodo) => (
+                                                            <tr key={metodo.id} className="hover:bg-gray-50 transition-colors">
+                                                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{metodo.nombre}</td>
+                                                            </tr>
+                                                        ))}
+                                                    </tbody>
+                                                </table>
+                                                <div className="px-4 py-2 bg-gray-50 border-t border-gray-200 text-xs text-gray-500 text-center">
+                                                    Mostrando los últimos {ultimosMetodosPago.length} registros
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <p className="text-center text-gray-500 py-4">No hay métodos de pago registrados.</p>
+                                        )}
+
+                                        {/* Botón para recargar datos */}
+                                        {!isLoadingUltimosMetodosPago && ultimosMetodosPago.length > 0 && (
+                                            <div className="mt-4 text-center">
+                                                <button
+                                                    onClick={cargarUltimosMetodosPago}
                                                     className="text-sm text-blue-600 hover:text-blue-800 hover:underline transition-colors"
                                                 >
                                                     Actualizar lista

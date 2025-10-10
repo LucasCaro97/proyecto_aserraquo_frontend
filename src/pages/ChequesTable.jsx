@@ -81,6 +81,9 @@ export const ChequesTable = () => {
             header: isRecibido ? 'Emisor' : 'Beneficiario', 
             accessor: 'terceroNombre' 
         },
+        // INICIO DE LA MODIFICACIÓN
+        { header: 'Egreso Vinculado', accessor: 'egreso', isLinked: true }, 
+        // FIN DE LA MODIFICACIÓN
         { 
             header: isRecibido ? 'Banco Emisor' : 'Cuenta Propia', 
             accessor: isRecibido ? 'bancoEmisor' : 'cuentaPropia' // Asumiendo que el DTO de respuesta trae estos campos
@@ -174,7 +177,22 @@ export const ChequesTable = () => {
                                     <tr key={cheque.id} className="hover:bg-gray-50 transition-colors">
                                         {columns.map((col) => (
                                             <td key={col.accessor} className="px-6 py-4 whitespace-nowrap">
-                                                {col.isStatus ? (
+                                                {/* LÓGICA PARA RENDERIZAR LA COLUMNA DE EGRESO O ESTADO */}
+                                                {col.isLinked ? (
+                                                    <div className="flex items-center space-x-2">
+                                                        {cheque.egreso ? (
+                                                            <span className="text-red-600 font-semibold text-xs flex items-center">
+                                                                <ArrowDownCircle className="w-4 h-4 mr-1" />
+                                                                Vinculado (ID: {cheque.egreso.id})
+                                                            </span>
+                                                        ) : (
+                                                            <span className="text-gray-500 text-xs flex items-center">
+                                                                <CreditCard className="w-4 h-4 mr-1" />
+                                                                Pendiente
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                ) : col.isStatus ? (
                                                     <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full text-white ${estadoInfo.color}`}>
                                                         {estadoInfo.label}
                                                     </span>
@@ -183,6 +201,7 @@ export const ChequesTable = () => {
                                                         {col.formatter ? col.formatter(cheque[col.accessor]) : (col.accessor === (isRecibido ? 'bancoEmisor' : 'cuentaPropia') ? bancoDisplay : cheque[col.accessor])}
                                                     </div>
                                                 )}
+                                                {/* FIN DE LÓGICA DE RENDERIZADO */}
                                             </td>
                                         ))}
                                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
