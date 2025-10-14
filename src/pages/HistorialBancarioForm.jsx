@@ -4,6 +4,7 @@ import { useUsuario } from '../hooks/useUsuario';
 import { useRegistrosFinancieros } from '../hooks/useRegistrosFinancieros';
 import { obtenerDiaDeLaSemana } from '../hooks/obtenerDiaDeLaSemana';
 import axios from 'axios';
+import { CrearRegistroModal } from '../components/CrearRegistroModal';
 
 export const HistorialBancarioForm = ({ onBack, onSuccess }) => {
     // Estados del formulario
@@ -43,25 +44,29 @@ export const HistorialBancarioForm = ({ onBack, onSuccess }) => {
     };
 
     // Hook personalizado para registros financieros
-        const {
-            registrosDisponibles,
-            isLoadingRegistros,
-            cargarRegistrosFinancieros,
-            crearRegistroDelDia,
-        } = useRegistrosFinancieros();
-    
+    const {
+        registrosDisponibles,
+        isLoadingRegistros,
+        cargarRegistrosFinancieros,
+        crearRegistroDelDia,
+    } = useRegistrosFinancieros();
+
+    //estado para controlar el modal
+    const [mostrarModalRegistro, setMostrarModalRegistro] = useState(false);
+
     // Función para crear un nuevo registro financiero diario para el día actual
-    const handleCrearRegistroDelDia = async () => {
+    const handleCrearRegistroDelDia = async (fecha) => {
         setIsCreatingRegistro(true);
         setError('');
 
         try {
-            const nuevoRegistro = await crearRegistroDelDia();
-            
+            const nuevoRegistro = await crearRegistroDelDia(fecha);
+
             if (nuevoRegistro && nuevoRegistro.id) {
-                setRegistroFinancieroDiario(nuevoRegistro.id.toString());
+                setRegistroDiarioSeleccionado(nuevoRegistro.id.toString());
                 setSuccess('Registro del día actual creado exitosamente');
             }
+            setMostrarModalRegistro(false);
         } catch (error) {
             setError(error.message);
         } finally {
@@ -135,7 +140,7 @@ export const HistorialBancarioForm = ({ onBack, onSuccess }) => {
             };
 
             const response = await axios.post(`${apiUrl}/historial-saldo`, nuevoRegistro);
-            
+
             setTimeout(() => {
                 setSuccess('Registro de historial bancario guardado exitosamente');
                 setSaldoActual('');
@@ -172,12 +177,12 @@ export const HistorialBancarioForm = ({ onBack, onSuccess }) => {
     };
 
     const formatearFechaConDia = (fechaString) => {
-            if (!fechaString) return '';
-            const partes = fechaString.split('-');
-            const fecha = `${partes[2]}-${partes[1]}-${partes[0]}`;
-            const dia = obtenerDiaDeLaSemana(fechaString);
-            return `${dia} ${fecha}`;
-        };
+        if (!fechaString) return '';
+        const partes = fechaString.split('-');
+        const fecha = `${partes[2]}-${partes[1]}-${partes[0]}`;
+        const dia = obtenerDiaDeLaSemana(fechaString);
+        return `${dia} ${fecha}`;
+    };
 
     return (
         <div className="min-h-screen bg-gray-50 p-6">
@@ -260,13 +265,13 @@ export const HistorialBancarioForm = ({ onBack, onSuccess }) => {
                                     {/* Botón para crear registro del día actual */}
                                     <button
                                         type="button"
-                                        onClick={handleCrearRegistroDelDia}
-                                        disabled={isCreatingRegistro || isLoadingRegistros}
-                                        className={`flex items-center justify-center px-4 py-3 rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${isCreatingRegistro || isLoadingRegistros
+                                        onClick={() => { setError(''); setMostrarModalRegistro(true); }} // Limpiar error y abrir modal
+                                        disabled={isLoadingRegistros}
+                                        className={`flex items-center justify-center px-4 py-3 rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${isLoadingRegistros
                                             ? 'bg-gray-400 cursor-not-allowed text-gray-200'
                                             : 'bg-blue-600 hover:bg-blue-700 text-white'
                                             }`}
-                                        title="Crear registro para el día actual"
+                                        title="Crear registro con fecha específica"
                                     >
                                         {isCreatingRegistro ? (
                                             <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
@@ -276,7 +281,7 @@ export const HistorialBancarioForm = ({ onBack, onSuccess }) => {
                                     </button>
                                 </div>
                             </div>
-                            
+
                             {/* Campo Banco */}
                             <div>
                                 <label htmlFor="bancoSeleccionado" className="block text-sm font-medium text-gray-700 mb-2">
@@ -335,11 +340,10 @@ export const HistorialBancarioForm = ({ onBack, onSuccess }) => {
                                 <button
                                     type="submit"
                                     disabled={isLoadingForm || !usuario}
-                                    className={`flex-1 font-bold py-3 px-4 rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
-                                        isLoadingForm || !usuario
+                                    className={`flex-1 font-bold py-3 px-4 rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${isLoadingForm || !usuario
                                             ? 'bg-gray-400 cursor-not-allowed text-gray-200'
                                             : 'bg-green-600 hover:bg-green-700 text-white'
-                                    } flex items-center justify-center space-x-2`}
+                                        } flex items-center justify-center space-x-2`}
                                 >
                                     {isLoadingForm ? (
                                         <>
@@ -457,6 +461,14 @@ export const HistorialBancarioForm = ({ onBack, onSuccess }) => {
                     </div>
                 </div>
             </div>
+
+            <CrearRegistroModal
+                isOpen={mostrarModalRegistro}
+                onClose={() => { setMostrarModalRegistro(false); setError(''); }} // Limpiar error al cerrar
+                onCrearRegistro={handleCrearRegistroDelDia}
+                isCreating={isCreatingRegistro}
+                error={error}
+            />
         </div>
     );
 };

@@ -34,12 +34,17 @@ export const useRegistrosFinancieros = (autoLoad = true) => {
     }, [autoLoad, cargarRegistrosFinancieros]);
 
     // Función para crear un registro del día actual
-    const crearRegistroDelDia = useCallback(async () => {
+    const crearRegistroDelDia = useCallback(async (fechaSeleccionada) => {
         setError('');
         
+        if (!fechaSeleccionada) {
+        const errorMsg = 'Debe proporcionar una fecha para crear el registro.';
+        setError(errorMsg);
+        throw new Error(errorMsg);
+    }
+
         try {
-            const fechaHoy = new Date().toISOString().split('T')[0];
-            const response = await axios.post(`${apiUrl}/registro-financiero`, { fecha: fechaHoy });
+            const response = await axios.post(`${apiUrl}/registro-financiero`, { fecha: fechaSeleccionada  });
             
             // Recargar la lista después de crear el registro
             await cargarRegistrosFinancieros();

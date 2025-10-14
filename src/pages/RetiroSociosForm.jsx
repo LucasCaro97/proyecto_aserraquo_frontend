@@ -4,6 +4,7 @@ import { useUsuario } from '../hooks/useUsuario';
 import { useRegistrosFinancieros } from '../hooks/useRegistrosFinancieros';
 import { obtenerDiaDeLaSemana } from '../hooks/obtenerDiaDeLaSemana';
 import axios from 'axios';
+import { CrearRegistroModal } from '../components/CrearRegistroModal';
 
 export const RetiroSociosForm = ({ onBack, onSuccess }) => {
     // Estados del formulario de Retiro de Socios
@@ -36,12 +37,15 @@ export const RetiroSociosForm = ({ onBack, onSuccess }) => {
         crearRegistroDelDia,
     } = useRegistrosFinancieros();
 
+    //estado para controlar el modal
+    const [mostrarModalRegistro, setMostrarModalRegistro] = useState(false);
+
     // Función para cargar los últimos 10 retiros de socios
     const cargarUltimosRetiros = async () => {
         setIsLoadingUltimosRetiros(true);
         try {
             const response = await axios.get(`${apiUrl}/retiro-socios/sorted-top10-desc`);
-            
+
             setTimeout(() => {
                 setUltimosRetiros(response.data);
                 setIsLoadingUltimosRetiros(false);
@@ -60,17 +64,18 @@ export const RetiroSociosForm = ({ onBack, onSuccess }) => {
         }
     }, [usuario]);
 
-    const handleCrearRegistroDelDia = async () => {
+    const handleCrearRegistroDelDia = async (fecha) => {
         setIsCreatingRegistro(true);
         setError('');
 
         try {
-            const nuevoRegistro = await crearRegistroDelDia();
-            
+            const nuevoRegistro = await crearRegistroDelDia(fecha);
+
             if (nuevoRegistro && nuevoRegistro.id) {
                 setRegistroFinancieroDiario(nuevoRegistro.id.toString());
                 setSuccess('Registro del día actual creado exitosamente');
             }
+            setMostrarModalRegistro(false);
         } catch (error) {
             setError(error.message);
         } finally {
@@ -110,7 +115,7 @@ export const RetiroSociosForm = ({ onBack, onSuccess }) => {
             };
 
             const response = await axios.post(`${apiUrl}/retiro-socios`, nuevoRetiro);
-            
+
             setTimeout(() => {
                 setSuccess('Retiro de socio registrado exitosamente');
                 // Limpiar formulario
@@ -121,7 +126,7 @@ export const RetiroSociosForm = ({ onBack, onSuccess }) => {
 
                 // Recargar la tabla de últimos retiros
                 cargarUltimosRetiros();
-                
+
                 // Callback de éxito si se proporciona
                 if (onSuccess) {
                     setTimeout(() => onSuccess(), 1500);
@@ -148,7 +153,7 @@ export const RetiroSociosForm = ({ onBack, onSuccess }) => {
         const partes = fechaString.split('T')[0].split('-');
         return `${partes[2]}-${partes[1]}-${partes[0]}`;
     };
-    
+
     const formatearFechaConDia = (fechaString) => {
         if (!fechaString) return '';
         const partes = fechaString.split('-');
@@ -267,13 +272,13 @@ export const RetiroSociosForm = ({ onBack, onSuccess }) => {
                                     {/* Botón para crear registro del día actual */}
                                     <button
                                         type="button"
-                                        onClick={handleCrearRegistroDelDia}
-                                        disabled={isCreatingRegistro || isLoadingRegistros}
-                                        className={`flex items-center justify-center px-4 py-3 rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${isCreatingRegistro || isLoadingRegistros
+                                        onClick={() => { setError(''); setMostrarModalRegistro(true); }} // Limpiar error y abrir modal
+                                        disabled={isLoadingRegistros}
+                                        className={`flex items-center justify-center px-4 py-3 rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${isLoadingRegistros
                                             ? 'bg-gray-400 cursor-not-allowed text-gray-200'
                                             : 'bg-blue-600 hover:bg-blue-700 text-white'
                                             }`}
-                                        title="Crear registro para el día actual"
+                                        title="Crear registro con fecha específica"
                                     >
                                         {isCreatingRegistro ? (
                                             <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
@@ -309,9 +314,8 @@ export const RetiroSociosForm = ({ onBack, onSuccess }) => {
                                 <button
                                     type="submit"
                                     onClick={handleSubmitRetiro}
-                                    className={`w-full flex items-center justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white transition-colors ${
-                                        isLoadingRetiro ? 'bg-blue-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500'
-                                    }`}
+                                    className={`w-full flex items-center justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white transition-colors ${isLoadingRetiro ? 'bg-blue-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500'
+                                        }`}
                                     disabled={isLoadingRetiro}
                                 >
                                     {isLoadingRetiro ? (
@@ -409,6 +413,15 @@ export const RetiroSociosForm = ({ onBack, onSuccess }) => {
                     </div>
                 </div>
             </div>
+
+            <CrearRegistroModal
+                isOpen={mostrarModalRegistro}
+                onClose={() => { setMostrarModalRegistro(false); setError(''); }} // Limpiar error al cerrar
+                onCrearRegistro={handleCrearRegistroDelDia}
+                isCreating={isCreatingRegistro}
+                error={error}
+            />
+
         </div>
     );
 };

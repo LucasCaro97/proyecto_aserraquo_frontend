@@ -4,6 +4,7 @@ import axios from 'axios';
 import { obtenerDiaDeLaSemana } from '../hooks/obtenerDiaDeLaSemana';
 import { useUsuario } from '../hooks/useUsuario';
 import { useRegistrosFinancieros } from '../hooks/useRegistrosFinancieros';
+import { CrearRegistroModal } from '../components/CrearRegistroModal';
 
 export const IngresoRollosPage = ({ onBack, onSuccess }) => {
     // Estados del formulario de Rollo
@@ -47,6 +48,9 @@ export const IngresoRollosPage = ({ onBack, onSuccess }) => {
         cargarRegistrosFinancieros,
         crearRegistroDelDia,
     } = useRegistrosFinancieros();
+
+    //estado para controlar el modal
+    const [mostrarModalRegistro, setMostrarModalRegistro] = useState(false);
 
     // Función para cargar los últimos 10 rollos
     const cargarUltimosRollos = async () => {
@@ -101,18 +105,20 @@ export const IngresoRollosPage = ({ onBack, onSuccess }) => {
         }
     }, [usuario]);
 
-    const handleCrearRegistroDelDia = async () => {
+    const handleCrearRegistroDelDia = async (fecha) => {
         setIsCreatingRegistro(true);
         setError('');
 
         try {
-            const nuevoRegistro = await crearRegistroDelDia();
+            const nuevoRegistro = await crearRegistroDelDia(fecha);
             if (nuevoRegistro && nuevoRegistro.id) {
                 setRegistroFinancieroDiario(nuevoRegistro.id.toString());
                 setSuccess('Registro del día actual creado exitosamente');
             }
+            // Cerrar el modal después de crear con éxito
+            setMostrarModalRegistro(false); 
         } catch (error) {
-            setError(error.message);
+            setError(error.message || 'Error al crear el registro financiero.');
         } finally {
             setIsCreatingRegistro(false);
         }
@@ -397,13 +403,13 @@ export const IngresoRollosPage = ({ onBack, onSuccess }) => {
                                         {/* Botón para crear registro del día actual */}
                                         <button
                                             type="button"
-                                            onClick={handleCrearRegistroDelDia}
-                                            disabled={isCreatingRegistro || isLoadingRegistros}
-                                            className={`flex items-center justify-center px-4 py-3 rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${isCreatingRegistro || isLoadingRegistros
+                                            onClick={() => { setError(''); setMostrarModalRegistro(true); }} // Limpiar error y abrir modal
+                                            disabled={isLoadingRegistros}
+                                            className={`flex items-center justify-center px-4 py-3 rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${isLoadingRegistros
                                                 ? 'bg-gray-400 cursor-not-allowed text-gray-200'
                                                 : 'bg-blue-600 hover:bg-blue-700 text-white'
                                                 }`}
-                                            title="Crear registro para el día actual"
+                                            title="Crear registro con fecha específica"
                                         >
                                             {isCreatingRegistro ? (
                                                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
@@ -659,6 +665,14 @@ export const IngresoRollosPage = ({ onBack, onSuccess }) => {
                     </div>
                 </div>
             </div>
+
+            <CrearRegistroModal 
+                isOpen={mostrarModalRegistro}
+                onClose={() => { setMostrarModalRegistro(false); setError(''); }} // Limpiar error al cerrar
+                onCrearRegistro={handleCrearRegistroDelDia}
+                isCreating={isCreatingRegistro}
+                error={error}
+            />
         </div>
     );
 };

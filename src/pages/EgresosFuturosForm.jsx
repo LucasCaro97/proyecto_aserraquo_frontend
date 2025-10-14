@@ -4,6 +4,7 @@ import { useUsuario } from '../hooks/useUsuario';
 import { useRegistrosFinancieros } from '../hooks/useRegistrosFinancieros';
 import { obtenerDiaDeLaSemana } from '../hooks/obtenerDiaDeLaSemana';
 import axios from 'axios';
+import { CrearRegistroModal } from '../components/CrearRegistroModal';
 
 export const EgresosFuturosForm = ({ onBack, onSuccess }) => {
     // Estados del formulario de Tipo de Deuda Futura
@@ -49,12 +50,15 @@ export const EgresosFuturosForm = ({ onBack, onSuccess }) => {
         crearRegistroDelDia,
     } = useRegistrosFinancieros();
 
+    //estado para controlar el modal
+    const [mostrarModalRegistro, setMostrarModalRegistro] = useState(false);
+
     // Función para cargar los últimos 10 tipos de deuda
     const cargarUltimosTiposDeuda = async () => {
         setIsLoadingUltimosTiposDeuda(true);
         try {
             const response = await axios.get(`${apiUrl}/tipo-deuda-futura`);
-            
+
             setTimeout(() => {
                 setUltimosTiposDeuda(response.data);
                 setIsLoadingUltimosTiposDeuda(false);
@@ -70,7 +74,7 @@ export const EgresosFuturosForm = ({ onBack, onSuccess }) => {
         setIsLoadingUltimosDeudas(true);
         try {
             const response = await axios.get(`${apiUrl}/deuda-futura/sorted-top10-desc`);
-            
+
             setTimeout(() => {
                 setUltimosDeudas(response.data);
                 setIsLoadingUltimosDeudas(false);
@@ -104,17 +108,18 @@ export const EgresosFuturosForm = ({ onBack, onSuccess }) => {
         }
     }, [usuario]);
 
-    const handleCrearRegistroDelDia = async () => {
+    const handleCrearRegistroDelDia = async (fecha) => {
         setIsCreatingRegistro(true);
         setError('');
 
         try {
-            const nuevoRegistro = await crearRegistroDelDia();
-            
+            const nuevoRegistro = await crearRegistroDelDia(fecha);
+
             if (nuevoRegistro && nuevoRegistro.id) {
                 setRegistroFinancieroDiario(nuevoRegistro.id.toString());
                 setSuccess('Registro del día actual creado exitosamente');
             }
+            setMostrarModalRegistro(false);
         } catch (error) {
             setError(error.message);
         } finally {
@@ -142,7 +147,7 @@ export const EgresosFuturosForm = ({ onBack, onSuccess }) => {
             };
 
             const response = await axios.post(`${apiUrl}/tipo-deuda-futura`, nuevoTipoDeuda);
-            
+
             setTimeout(() => {
                 setSuccess('Tipo de deuda registrado exitosamente');
                 // Limpiar formulario
@@ -204,7 +209,7 @@ export const EgresosFuturosForm = ({ onBack, onSuccess }) => {
             };
 
             const response = await axios.post(`${apiUrl}/deuda-futura`, nuevaDeuda);
-            
+
             setTimeout(() => {
                 setSuccess('Egreso futuro registrado exitosamente');
                 // Limpiar formulario
@@ -216,7 +221,7 @@ export const EgresosFuturosForm = ({ onBack, onSuccess }) => {
 
                 // Recargar la tabla de egresos futuros
                 cargarUltimosDeudas();
-                
+
                 // Callback de éxito si se proporciona
                 if (onSuccess) {
                     setTimeout(() => onSuccess(), 1500);
@@ -243,7 +248,7 @@ export const EgresosFuturosForm = ({ onBack, onSuccess }) => {
         const partes = fechaString.split('T')[0].split('-');
         return `${partes[2]}-${partes[1]}-${partes[0]}`;
     };
-    
+
     const formatearFechaConDia = (fechaString) => {
         if (!fechaString) return '';
         const partes = fechaString.split('-');
@@ -318,11 +323,10 @@ export const EgresosFuturosForm = ({ onBack, onSuccess }) => {
                                 <nav className="flex space-x-8">
                                     <button
                                         onClick={() => setActiveTab('deuda')}
-                                        className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
-                                            activeTab === 'deuda'
+                                        className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${activeTab === 'deuda'
                                                 ? 'border-blue-500 text-blue-600'
                                                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                                        }`}
+                                            }`}
                                     >
                                         <div className="flex items-center space-x-2">
                                             <TrendingDown className="h-4 w-4" />
@@ -331,11 +335,10 @@ export const EgresosFuturosForm = ({ onBack, onSuccess }) => {
                                     </button>
                                     <button
                                         onClick={() => setActiveTab('tipoDeuda')}
-                                        className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
-                                            activeTab === 'tipoDeuda'
+                                        className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${activeTab === 'tipoDeuda'
                                                 ? 'border-blue-500 text-blue-600'
                                                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                                        }`}
+                                            }`}
                                     >
                                         <div className="flex items-center space-x-2">
                                             <ListPlus className="h-4 w-4" />
@@ -426,13 +429,13 @@ export const EgresosFuturosForm = ({ onBack, onSuccess }) => {
                                         {/* Botón para crear registro del día actual */}
                                         <button
                                             type="button"
-                                            onClick={handleCrearRegistroDelDia}
-                                            disabled={isCreatingRegistro || isLoadingRegistros}
-                                            className={`flex items-center justify-center px-4 py-3 rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${isCreatingRegistro || isLoadingRegistros
+                                            onClick={() => { setError(''); setMostrarModalRegistro(true); }} // Limpiar error y abrir modal
+                                            disabled={isLoadingRegistros}
+                                            className={`flex items-center justify-center px-4 py-3 rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${isLoadingRegistros
                                                 ? 'bg-gray-400 cursor-not-allowed text-gray-200'
                                                 : 'bg-blue-600 hover:bg-blue-700 text-white'
                                                 }`}
-                                            title="Crear registro para el día actual"
+                                            title="Crear registro con fecha específica"
                                         >
                                             {isCreatingRegistro ? (
                                                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
@@ -468,9 +471,8 @@ export const EgresosFuturosForm = ({ onBack, onSuccess }) => {
                                     <button
                                         type="submit"
                                         onClick={handleSubmitDeuda}
-                                        className={`w-full flex items-center justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white transition-colors ${
-                                            isLoadingDeuda ? 'bg-blue-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500'
-                                        }`}
+                                        className={`w-full flex items-center justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white transition-colors ${isLoadingDeuda ? 'bg-blue-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500'
+                                            }`}
                                         disabled={isLoadingDeuda}
                                     >
                                         {isLoadingDeuda ? (
@@ -521,9 +523,8 @@ export const EgresosFuturosForm = ({ onBack, onSuccess }) => {
                                     <button
                                         type="submit"
                                         onClick={handleSubmitTipoDeuda}
-                                        className={`w-full flex items-center justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white transition-colors ${
-                                            isLoadingTipoDeuda ? 'bg-blue-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500'
-                                        }`}
+                                        className={`w-full flex items-center justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white transition-colors ${isLoadingTipoDeuda ? 'bg-blue-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500'
+                                            }`}
                                         disabled={isLoadingTipoDeuda}
                                     >
                                         {isLoadingTipoDeuda ? (
@@ -625,7 +626,7 @@ export const EgresosFuturosForm = ({ onBack, onSuccess }) => {
                                 )}
                             </div>
                         )}
-                        
+
                         {/* Tabla de Últimos Tipos de Deuda */}
                         {activeTab === 'tipoDeuda' && (
                             <div className="bg-white rounded-xl shadow-md p-6">
@@ -692,6 +693,14 @@ export const EgresosFuturosForm = ({ onBack, onSuccess }) => {
                     </div>
                 </div>
             </div>
+
+            <CrearRegistroModal
+                isOpen={mostrarModalRegistro}
+                onClose={() => { setMostrarModalRegistro(false); setError(''); }} // Limpiar error al cerrar
+                onCrearRegistro={handleCrearRegistroDelDia}
+                isCreating={isCreatingRegistro}
+                error={error}
+            />
         </div>
     );
 };

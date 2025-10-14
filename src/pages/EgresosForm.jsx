@@ -7,6 +7,7 @@ import { useUsuario } from '../hooks/useUsuario';
 import { useRegistrosFinancieros } from '../hooks/useRegistrosFinancieros';
 import { obtenerDiaDeLaSemana } from '../hooks/obtenerDiaDeLaSemana';
 import axios from 'axios';
+import { CrearRegistroModal } from '../components/CrearRegistroModal';
 
 // Definimos un valor Epsilon (tolerancia) para comparaciones de punto flotante.
 const EPSILON = 0.000001; 
@@ -78,9 +79,10 @@ export const EgresosForm = ({ onBack, onSuccess }) => {
         crearRegistroDelDia,
     } = useRegistrosFinancieros();
 
-    // =========================================================
+    //estado para controlar el modal
+    const [mostrarModalRegistro, setMostrarModalRegistro] = useState(false);
+
     // NUEVA FUNCIÓN DINÁMICA: Determina si el método es de tipo Cheque
-    // =========================================================
     const esMetodoCheque = useCallback((metodoId) => {
         if (!metodoId) return false;
         // Buscamos el objeto del método de pago por su ID
@@ -89,7 +91,6 @@ export const EgresosForm = ({ onBack, onSuccess }) => {
         // Verificamos si el método existe y si su nombre contiene "cheque" (insensible a mayúsculas)
         return metodo && metodo.nombre.toLowerCase().includes('cheque');
     }, [metodosPagoDisponibles]);
-    // =========================================================
 
     // --- FUNCIONES DE CARGA DE DATOS ---
 
@@ -239,17 +240,18 @@ export const EgresosForm = ({ onBack, onSuccess }) => {
 
     // --- HANDLERS DE FORMULARIO ---
 
-    const handleCrearRegistroDelDia = async () => {
+    const handleCrearRegistroDelDia = async (fecha) => {
         setIsCreatingRegistro(true);
         setError('');
 
         try {
-            const nuevoRegistro = await crearRegistroDelDia();
+            const nuevoRegistro = await crearRegistroDelDia(fecha);
             
             if (nuevoRegistro && nuevoRegistro.id) {
                 setRegistroFinancieroDiario(nuevoRegistro.id.toString());
                 setSuccess('Registro del día actual creado exitosamente');
             }
+            setMostrarModalRegistro(false);
         } catch (error) {
             setError(error.message);
         } finally {
@@ -764,13 +766,13 @@ export const EgresosForm = ({ onBack, onSuccess }) => {
                                         {/* Botón para crear registro del día actual */}
                                         <button
                                             type="button"
-                                            onClick={handleCrearRegistroDelDia}
-                                            disabled={isCreatingRegistro || isLoadingRegistros}
-                                            className={`flex items-center justify-center px-4 py-3 rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${isCreatingRegistro || isLoadingRegistros
+                                            onClick={() => { setError(''); setMostrarModalRegistro(true); }} // Limpiar error y abrir modal
+                                            disabled={isLoadingRegistros}
+                                            className={`flex items-center justify-center px-4 py-3 rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${isLoadingRegistros
                                                 ? 'bg-gray-400 cursor-not-allowed text-gray-200'
                                                 : 'bg-blue-600 hover:bg-blue-700 text-white'
                                                 }`}
-                                            title="Crear registro para el día actual"
+                                            title="Crear registro con fecha específica"
                                         >
                                             {isCreatingRegistro ? (
                                                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
@@ -1182,6 +1184,14 @@ export const EgresosForm = ({ onBack, onSuccess }) => {
                     </div>
                 </div>
             </div>
+        <CrearRegistroModal 
+                isOpen={mostrarModalRegistro}
+                onClose={() => { setMostrarModalRegistro(false); setError(''); }} // Limpiar error al cerrar
+                onCrearRegistro={handleCrearRegistroDelDia}
+                isCreating={isCreatingRegistro}
+                error={error}
+            />
+        
         </div>
     );
 };
