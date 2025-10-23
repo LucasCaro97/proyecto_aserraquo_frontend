@@ -19,7 +19,8 @@ export const useUsuario = () => {
                     const decodedToken = jwtDecode(token);
                     setUsuario({ 
                         id: decodedToken.id, 
-                        nombre: decodedToken.sub 
+                        nombre: decodedToken.sub, 
+                        rol: decodedToken.authorities
                     });
                 } else {
                     setUsuario(null);

@@ -1,18 +1,20 @@
 import React, { useState } from 'react';
-import { 
-  Plus, 
-  Eye, 
-  TreePine, 
-  TrendingUp, 
-  Building2, 
-  ArrowUpCircle, 
-  ArrowDownCircle, 
-  TrendingDown, 
+import {
+  Plus,
+  Eye,
+  TreePine,
+  TrendingUp,
+  Building2,
+  ArrowUpCircle,
+  ArrowDownCircle,
+  TrendingDown,
   Users,
   History,
   CreditCard
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useUsuario } from '../hooks/useUsuario';
+import { useMemo } from 'react';
 
 export const Dashboard = () => {
   const [activeSection, setActiveSection] = useState(null);
@@ -29,6 +31,7 @@ export const Dashboard = () => {
       description: 'Gestiona el ingreso de rollos al aserradero',
       urlForm: '/ingreso-rollos',
       urlTable: '/visualizar-ingreso-rollos',
+      requiredPermissions: ['ROLE_ADMIN', 'ROLE_ROLLOS'],
     },
     {
       id: 'ingresos-futuros',
@@ -39,6 +42,7 @@ export const Dashboard = () => {
       description: 'Proyecciones y planificación de ingresos',
       urlForm: '/ingresos-futuros',
       urlTable: '/visualizar-ingresos-futuros',
+      requiredPermissions: ['ROLE_ADMIN', 'ROLE_INGRESO_FUTURO'],
     },
     {
       id: 'bancos',
@@ -48,7 +52,8 @@ export const Dashboard = () => {
       hoverColor: 'hover:bg-purple-600',
       description: 'Gestión de cuentas bancarias y movimientos',
       urlForm: '/bancos',
-      urlTable: '/visualizar-bancos'
+      urlTable: '/visualizar-bancos',
+      requiredPermissions: ['ROLE_ADMIN', 'ROLE_BANCOS'],
     },
     {
       id: 'cheques',
@@ -59,6 +64,7 @@ export const Dashboard = () => {
       description: 'Gestión y seguimiento de cheques recibidos y emitidos.',
       urlForm: '/cheques', // Ajusta las URL según tu enrutamiento real
       urlTable: '/cheques/visualizar', // Ajusta las URL según tu enrutamiento real
+      requiredPermissions: ['ROLE_ADMIN', 'ROLE_BANCOS'],
     },
     {
       id: 'historial-bancario-diario',
@@ -68,7 +74,8 @@ export const Dashboard = () => {
       hoverColor: 'hover:bg-cyan-700',
       description: 'Visualiza el historial de movimientos de todas las cuentas bancarias.',
       urlForm: '/historial-bancario',
-      urlTable: '/visualizar-historial-bancario'
+      urlTable: '/visualizar-historial-bancario',
+      requiredPermissions: ['ROLE_ADMIN', 'ROLE_BANCOS'],
     },
     {
       id: 'ingresos',
@@ -78,7 +85,8 @@ export const Dashboard = () => {
       hoverColor: 'hover:bg-emerald-600',
       description: 'Registro y control de todos los ingresos',
       urlForm: '/ingresos',
-      urlTable: '/visualizar-ingresos'
+      urlTable: '/visualizar-ingresos',
+      requiredPermissions: ['ROLE_ADMIN', 'ROLE_INGRESOS'],
     },
     {
       id: 'egresos',
@@ -88,7 +96,8 @@ export const Dashboard = () => {
       hoverColor: 'hover:bg-red-600',
       description: 'Registro y control de todos los gastos',
       urlForm: '/egresos',
-      urlTable: '/visualizar-egresos'
+      urlTable: '/visualizar-egresos',
+      requiredPermissions: ['ROLE_ADMIN', 'ROLE_EGRESOS'],
     },
     {
       id: 'egresos-futuros',
@@ -98,7 +107,8 @@ export const Dashboard = () => {
       hoverColor: 'hover:bg-orange-600',
       description: 'Planificación y proyección de gastos',
       urlForm: '/egresos-futuros',
-      urlTable: '/visualizar-egresos-futuros'
+      urlTable: '/visualizar-egresos-futuros',
+      requiredPermissions: ['ROLE_ADMIN', 'ROLE_EGRESO_FUTURO'],
     },
     {
       id: 'retiro-socios',
@@ -108,9 +118,24 @@ export const Dashboard = () => {
       hoverColor: 'hover:bg-indigo-600',
       description: 'Gestión de retiros y distribuciones',
       urlForm: '/retiro-socios',
-      urlTable: '/visualizar-retiro-socios'
+      urlTable: '/visualizar-retiro-socios',
+      requiredPermissions: ['ROLE_ADMIN', 'ROLE_RETIRO_SOCIO'],
     }
   ];
+
+
+  // Hook personalizado para obtener el usuario
+  const { usuario } = useUsuario();
+  
+  // 1. Array de Permisos del Usuario
+  const userPermissions = useMemo(() => {
+    // Retorna un array vacío si usuario o rol no existen
+    if (!usuario?.rol) return [];
+    console.log(usuario.rol);
+    const permissionsArray = usuario.rol.split(',').map(p => p.trim().toUpperCase());
+    return permissionsArray;
+  }, [usuario]);
+
 
   const handleAddNew = (itemUrl) => {
     navigate(itemUrl);
@@ -119,6 +144,23 @@ export const Dashboard = () => {
   const handleViewRecords = (itemUrl) => {
     navigate(itemUrl);
   };
+
+  // 2. LÓGICA DE FILTRADO
+  const filteredSections = dashboardSections.filter(section => {
+    
+    // Verifica si la sección tiene el array de permisos definido. Si no, la ocultamos.
+    if (!section.requiredPermissions || section.requiredPermissions.length === 0) {
+        console.log(`[${section.id}]: ERROR - requiredPermissions no definido. Resultado: ❌ OCULTAR`);
+        return false; 
+    }
+
+    // Usamos .some() para ver si AL MENOS UNO de los permisos requeridos 
+    // está incluido en el array de permisos del usuario (userPermissions).
+    const hasPermission = section.requiredPermissions.some(requiredPerm => 
+        userPermissions.includes(requiredPerm)
+    );    
+    return hasPermission;
+  });
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
@@ -134,7 +176,7 @@ export const Dashboard = () => {
 
         {/* Grid de Secciones */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-6xl mx-auto">
-          {dashboardSections.map((section) => (
+          {filteredSections.map((section) => (
             <div
               key={section.id}
               className="bg-white rounded-xl shadow-md hover:shadow-lg transition-all duration-300 overflow-hidden w-full max-w-sm mx-auto"
