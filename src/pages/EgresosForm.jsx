@@ -184,7 +184,7 @@ export const EgresosForm = ({ onBack, onSuccess }) => {
 
         try {
             // Asumiendo un endpoint para cheques pendientes de un egreso
-            const response = await axios.get(`${apiUrl}/cheques`); 
+            const response = await axios.get(`${apiUrl}/cheques/disponibles/EGRESO`); 
             
             setTimeout(() => {
                 setChequesDisponibles(response.data);
@@ -710,7 +710,7 @@ export const EgresosForm = ({ onBack, onSuccess }) => {
                                                             <label htmlFor={`cheque-${cheque.id}`} className="text-sm font-medium text-gray-900 flex-1">
                                                                 Cheque N° **{cheque.numeroCheque || 'N/A'}**
                                                                 <span className="block text-xs text-gray-500">
-                                                                    Vence: {formatearFecha(cheque.fechaVencimiento || '')}
+                                                                    Vence: {formatearFecha(cheque.fechaCobro || '')}
                                                                 </span>
                                                             </label>
                                                         </div>

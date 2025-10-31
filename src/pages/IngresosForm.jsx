@@ -146,7 +146,7 @@ export const IngresosForm = ({ onBack, onSuccess }) => {
 
         try {
             // Asumiendo un endpoint para cheques emitidos a favor y pendientes de cobro (Ingreso)
-            const response = await axios.get(`${apiUrl}/cheques/tipo/RECIBIDO/estado/PENDIENTE`); 
+            const response = await axios.get(`${apiUrl}/cheques/disponibles/INGRESO`); 
             
             setTimeout(() => {
                 setChequesDisponibles(response.data);
@@ -749,36 +749,6 @@ export const IngresosForm = ({ onBack, onSuccess }) => {
                                     </div>
                                 </div>
 
-                                {/* Campo Prioridad */}
-                                <div>
-                                    <label htmlFor="prioridadSeleccionada" className="block text-sm font-medium text-gray-700 mb-2">
-                                        Prioridad *
-                                    </label>
-                                    <div className="relative">
-                                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                            <Star className="h-5 w-5 text-gray-400" />
-                                        </div>
-                                        <select
-                                            id="prioridadSeleccionada"
-                                            value={prioridadSeleccionada}
-                                            onChange={(e) => setPrioridadSeleccionada(e.target.value)}
-                                            className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                                            required
-                                        >
-                                            <option value="" disabled>Seleccione una prioridad</option>
-                                            {isLoadingPrioridades ? (
-                                                <option disabled>Cargando...</option>
-                                            ) : (
-                                                prioridadesDisponibles.map((prioridad) => (
-                                                    <option key={prioridad.id} value={prioridad.id}>
-                                                        {prioridad.nombre}
-                                                    </option>
-                                                ))
-                                            )}
-                                        </select>
-                                    </div>
-                                </div>
-
                                 {/* Botón de Guardar */}
                                 <div className="pt-4">
                                     <button
@@ -972,16 +942,12 @@ export const IngresosForm = ({ onBack, onSuccess }) => {
                                                             <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                                                 Nombre
                                                             </th>
-                                                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                                Prioridad
-                                                            </th>
                                                         </tr>
                                                     </thead>
                                                     <tbody className="bg-white divide-y divide-gray-200">
                                                         {ultimosTiposIngreso.map((tipo) => (
                                                             <tr key={tipo.id} className="hover:bg-gray-50 transition-colors">
                                                                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{tipo.nombre}</td>
-                                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{tipo.prioridad?.nombre}</td>
                                                             </tr>
                                                         ))}
                                                     </tbody>

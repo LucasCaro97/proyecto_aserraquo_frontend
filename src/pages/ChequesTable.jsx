@@ -47,7 +47,6 @@ export const ChequesTable = () => {
                 // Endpoint único para obtener todos los cheques
                 const response = await axios.get(`${apiUrl}/cheques`); 
                 setCheques(response.data);
-                console.log(response.data)
                 
             } catch (err) {
                 console.error("Error al cargar cheques:", err);
@@ -70,7 +69,7 @@ export const ChequesTable = () => {
     
     // Obtiene las columnas y título según la pestaña activa
     const isRecibido = activeTab === TIPO_CHEQUE.RECIBIDO;
-    const tableTitle = isRecibido ? 'Cheques Recibidos (En Cartera)' : 'Cheques Emitidos (Propios)';
+    const tableTitle = isRecibido ? 'Cheques Recibidos de Terceros (En Cartera)' : 'Cheques Emitidos (Propios)';
     
     // Define las columnas de la tabla
     const columns = [

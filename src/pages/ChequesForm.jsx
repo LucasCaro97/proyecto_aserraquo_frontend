@@ -25,6 +25,27 @@ const ESTADO_CHEQUE = {
   ANULADO: 'ANULADO'
 };
 
+// Estados para Cheques EMITIDOS (Egreso)
+const ESTADOS_EMITIDO = [
+  ESTADO_CHEQUE.ENTREGADO, // Estado inicial
+  ESTADO_CHEQUE.COBRADO,
+  ESTADO_CHEQUE.RECHAZADO,
+  ESTADO_CHEQUE.ANULADO
+];
+
+// Estados para Cheques RECIBIDOS (Ingreso)
+const ESTADOS_RECIBIDO = [
+  ESTADO_CHEQUE.PENDIENTE, // Estado inicial
+  ESTADO_CHEQUE.DEPOSITADO,
+  ESTADO_CHEQUE.RECHAZADO,
+  ESTADO_CHEQUE.ANULADO
+];
+
+const CATEGORIA_CHEQUE = {
+  FISICO: 'FISICO',
+  ELECTRONICO: 'ELECTRONICO'
+};
+
 // Función utilitaria para convertir cadenas vacías a null
 const emptyStringToNull = (value) => {
   return value === '' ? null : value;
@@ -66,6 +87,7 @@ export const ChequesForm = () => {
     bancoTercerosId: '',
     cuentaBancariaId: '',
     estadoChequeNombre: ESTADO_CHEQUE.PENDIENTE,
+    categoriaCheque: CATEGORIA_CHEQUE.FISICO,
   });
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
@@ -139,6 +161,13 @@ export const ChequesForm = () => {
         const response = await axios.get(`${apiUrl}/cheques/${chequeId}`);
         const chequeData = response.data;
 
+        // 💡 EXTRACCIÓN DE IDs DE OBJETOS RELACIONADOS
+        // Si la API devuelve el objeto cuentaBancaria, extraemos su ID.
+        const cuentaBancariaId = chequeData.cuentaBancaria ? chequeData.cuentaBancaria.id : '';
+        // Hacemos lo mismo para bancoTerceros
+        const bancoTercerosId = chequeData.bancoTerceros ? chequeData.bancoTerceros.id : '';
+
+
         // 3. Mapear los datos al estado formData
         setFormData({
           tipoChequeNombre: chequeData.tipoCheque,
@@ -147,9 +176,10 @@ export const ChequesForm = () => {
           fechaEmision: chequeData.fechaEmision.split('T')[0], // Limpiar timestamp si viene de la API
           fechaCobro: chequeData.fechaCobro.split('T')[0], // Limpiar timestamp si viene de la API
           terceroNombre: chequeData.terceroNombre,
-          bancoTercerosId: chequeData.bancoTercerosId || '',
-          cuentaBancariaId: chequeData.cuentaBancariaId || '',
+          bancoTercerosId: bancoTercerosId || '',
+          cuentaBancariaId: cuentaBancariaId || '',
           estadoChequeNombre: chequeData.estadoCheque,
+          categoriaCheque: chequeData.categoriaCheque
         });
 
       } catch (err) {
@@ -169,25 +199,46 @@ export const ChequesForm = () => {
 
 
   const handleChange = (e) => {
-    // 💡 MODIFICACION: Ignorar cambios si estamos en modo visualización
-    if (isViewing) return;
-
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+
+    // 💡 MODIFICACION: Permitir cambios SIEMPRE si NO estamos viendo (modo creación)
+    // o si estamos viendo PERO el campo es 'estadoChequeNombre' (modo actualización de estado).
+    const isStateUpdateInViewMode = isViewing && name === 'estadoChequeNombre';
+    const isCreationMode = !isViewing;
+
+    const isEditingAllowed =
+      !isViewing ||
+      (isViewing && name !== 'tipoChequeNombre'); // Permitido si es cualquier campo menos 'tipoChequeNombre'
+
+    if (isEditingAllowed) {
+      setFormData(prev => ({
+        ...prev,
+        [name]: value
+      }));
+    }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    // 💡 MODIFICACION: Bloquear el envío si estamos en modo visualización
-    if (isViewing) return;
 
     setError(null);
     setSuccess(null);
 
+
+
     // 💡 REGLA DE NEGOCIO: VALIDACIÓN DE CAMPOS CLAVE
+    const fechaEmision = new Date(formData.fechaEmision);
+    const fechaCobro = new Date(formData.fechaCobro);
+
+    //Verifico que las fechas existan antes de comparar
+    if (formData.fechaEmision && formData.fechaCobro) {
+      if (fechaCobro < fechaEmision) {
+        setError("La Fecha de Cobro/Vencimiento no puede ser anterior a la Fecha de Emisión.");
+        return; //Detengo el envio del formulario
+      }
+    }
+
+
     if (formData.tipoChequeNombre === TIPO_CHEQUE.RECIBIDO) {
       if (!formData.bancoTercerosId) {
         setError("Debe seleccionar el Banco de Terceros (Emisor) para un cheque RECIBIDO.");
@@ -209,6 +260,7 @@ export const ChequesForm = () => {
       terceroNombre: formData.terceroNombre,
       tipoChequeNombre: formData.tipoChequeNombre,
       estadoChequeNombre: formData.estadoChequeNombre,
+      categoriaCheque: formData.categoriaCheque,
 
       // 💡 APLICACIÓN DE LA LIMPIEZA:
       bancoTercerosId: emptyStringToNull(formData.bancoTercerosId),
@@ -217,28 +269,38 @@ export const ChequesForm = () => {
 
     // 3. LLAMADA POST A LA API USANDO AXIOS
     try {
-      const response = await axios.post(`${apiUrl}/cheques`, chequeData);
+      let response;
+      let url = `${apiUrl}/cheques`;
+      
+      if (isViewing) {
+        // MODO ACTUALIZACIÓN (PUT): El ID va en la URL.
+        url = `${apiUrl}/cheques/${chequeId}`;
+        response = await axios.put(url, chequeData);
+        setSuccess(`Cheque #${response.data.numeroCheque} (ID: ${response.data.id}) actualizado con éxito.`);
+        return;
 
-      // Éxito:
-      setSuccess(`Cheque #${response.data.numeroCheque} registrado con éxito. ID: ${response.data.id}`);
+      } else {
 
-      // Opcional: Limpiar el formulario o redirigir
-      setFormData({
-        // Resetear el formulario a sus valores por defecto
-        tipoChequeNombre: TIPO_CHEQUE.RECIBIDO,
-        monto: '',
-        numeroCheque: '',
-        fechaEmision: '',
-        fechaCobro: '',
-        terceroNombre: '',
-        bancoTercerosId: '',
-        cuentaBancariaId: '',
-        estadoChequeNombre: ESTADO_CHEQUE.PENDIENTE,
-      });
+        response = await axios.post(url, chequeData);
+        setSuccess(`Cheque #${response.data.numeroCheque} registrado con éxito. ID: ${response.data.id}`);
+
+        // Opcional: Limpiar el formulario o redirigir
+        setFormData({
+          // Resetear el formulario a sus valores por defecto
+          tipoChequeNombre: TIPO_CHEQUE.RECIBIDO,
+          monto: '',
+          numeroCheque: '',
+          fechaEmision: '',
+          fechaCobro: '',
+          terceroNombre: '',
+          bancoTercerosId: '',
+          cuentaBancariaId: '',
+          estadoChequeNombre: ESTADO_CHEQUE.PENDIENTE,
+          categoriaCheque: CATEGORIA_CHEQUE.FISICO,
+        });
+      }
 
     } catch (err) {
-      console.error("Error al guardar cheque:", err);
-
       if (err.response || err.request) {
         setError("Error interno del servidor al guardar el cheque. Por favor, contacte a soporte.");
       } else {
@@ -262,18 +324,7 @@ export const ChequesForm = () => {
       </div>
     );
   }
-
-  // Pantalla de Error en Visualización
-  if (isViewing && error) {
-    return (
-      <div className="max-w-4xl mx-auto p-6 bg-red-100 border border-red-400 text-red-700 rounded-lg flex items-center">
-        <X className="w-5 h-5 mr-2" />
-        Error al cargar el detalle del cheque: {error}
-      </div>
-    );
-  }
-
-
+  
   return (
     <div className="max-w-4xl mx-auto p-6 bg-white rounded-xl shadow-lg">
       <div className="flex items-center space-x-4 mb-8 border-b pb-4">
@@ -289,8 +340,7 @@ export const ChequesForm = () => {
       {error && <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4 flex items-center"><X className="w-5 h-5 mr-2" />{error}</div>}
       {success && <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">{success}</div>}
 
-      {/* 💡 MODIFICACION: El formulario solo se envía en modo CREACIÓN */}
-      <form onSubmit={!isViewing ? handleSubmit : (e) => e.preventDefault()} className="space-y-6">
+      <form onSubmit={handleSubmit} className="space-y-6">
 
         {/* Selector de Tipo de Cheque */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -331,7 +381,6 @@ export const ChequesForm = () => {
               min="0.01"
               step="0.01"
               placeholder="Ej: 150000.50"
-              readOnly={isViewing} // 💡 APLICACION: Campo de solo lectura
               className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border ${isViewing ? 'bg-gray-100 text-gray-800' : ''}`} // 💡 Estilo visual para solo lectura
             />
           </div>
@@ -351,7 +400,6 @@ export const ChequesForm = () => {
               onChange={handleChange}
               required={!isViewing}
               placeholder="Ej: 123456"
-              readOnly={isViewing} // 💡 APLICACION: Campo de solo lectura
               className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border ${isViewing ? 'bg-gray-100 text-gray-800' : ''}`}
             />
           </div>
@@ -366,7 +414,6 @@ export const ChequesForm = () => {
               value={formData.fechaEmision}
               onChange={handleChange}
               required={!isViewing}
-              readOnly={isViewing} // 💡 APLICACION: Campo de solo lectura
               className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border ${isViewing ? 'bg-gray-100 text-gray-800' : ''}`}
             />
           </div>
@@ -381,7 +428,6 @@ export const ChequesForm = () => {
               value={formData.fechaCobro}
               onChange={handleChange}
               required={!isViewing}
-              readOnly={isViewing} // 💡 APLICACION: Campo de solo lectura
               className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border ${isViewing ? 'bg-gray-100 text-gray-800' : ''}`}
             />
           </div>
@@ -405,7 +451,6 @@ export const ChequesForm = () => {
                   value={formData.bancoTercerosId}
                   onChange={handleChange}
                   required={isRecibido && !isViewing}
-                  disabled={isViewing}
                   // Nota: Se elimina w-full del select y se deja que flex lo maneje, 
                   // pero se asegura que crezca con 'w-full' o 'flex-grow'
                   className={`block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border bg-white ${isViewing ? 'bg-gray-100 text-gray-800 opacity-80' : ''}`}
@@ -423,7 +468,6 @@ export const ChequesForm = () => {
                   type="button"
                   // 💡 LLAMADA AL ESTADO para abrir el modal
                   onClick={() => setIsModalOpen(true)}
-                  disabled={isViewing}
                   className="flex items-center justify-center p-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none disabled:opacity-50"
                   title="Crear nuevo Banco de Terceros"
                 >
@@ -447,7 +491,6 @@ export const ChequesForm = () => {
                 value={formData.cuentaBancariaId}
                 onChange={handleChange}
                 required={!isRecibido && !isViewing} // 💡 Solo requerido en modo creación
-                disabled={isViewing} // 💡 APLICACION: Select deshabilitado
                 className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border bg-white ${isViewing ? 'bg-gray-100 text-gray-800 opacity-80' : ''}`}
               >
                 <option value="">-- Seleccione tu cuenta --</option>
@@ -485,17 +528,72 @@ export const ChequesForm = () => {
         {/* Campo de Estado (Informativo, se establece automáticamente) y ID del Cheque */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700">Estado</label>
-            <input
-              type="text"
-              value={formData.estadoChequeNombre}
-              readOnly
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border bg-gray-100 text-gray-800"
-            />
+            <label htmlFor="categoriaCheque" className="block text-sm font-medium text-gray-700">Categoría del Cheque *</label>
+            <select
+              name="categoriaCheque"
+              id="categoriaCheque"
+              value={formData.categoriaCheque}
+              onChange={handleChange}
+              required={!isViewing}
+              className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border bg-white ${isViewing ? 'bg-gray-100 text-gray-800 opacity-80' : ''}`}
+            >
+              <option value="">Elegir una categoría</option>
+              <option value={CATEGORIA_CHEQUE.FISICO}>Físico</option>
+              <option value={CATEGORIA_CHEQUE.ELECTRONICO}>Electrónico</option>
+            </select>
             <p className="mt-1 text-xs text-gray-500">
-              {isRecibido ? 'Inicia como PENDIENTE (Recibido y por cobrar).' : 'Inicia como ENTREGADO (Emitido y entregado al beneficiario).'}
+              Define si es un cheque tradicional o digital (E-Cheq).
             </p>
           </div>
+
+          <div>
+            <label htmlFor="estadoChequeNombre" className="block text-sm font-medium text-gray-700">Estado *</label>
+
+            {/* 💡 LÓGICA DE VISUALIZACIÓN/EDICIÓN DEL SELECT DE ESTADO */}
+            {isViewing ? (
+              // 1. MODO VISUALIZACIÓN (isViewing=true): Permitir edición del estado
+              <select
+                name="estadoChequeNombre"
+                id="estadoChequeNombre"
+                value={formData.estadoChequeNombre}
+                onChange={handleChange} // Permite cambiar el estado
+                required={true}
+                disabled={false} // ¡IMPORTANTE! No deshabilitado en modo visualización
+                className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border bg-white`}
+              >
+                {(isRecibido ? ESTADOS_RECIBIDO : ESTADOS_EMITIDO).map(estado => (
+                  <option key={estado} value={estado}>
+                    {estado}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              // 2. MODO CREACIÓN (isViewing=false): Mostrar el estado inicial asignado, no editable
+              <input
+                type="text"
+                value={formData.estadoChequeNombre}
+                readOnly
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border bg-gray-100 text-gray-800"
+              />
+            )}
+
+            {/* 💡 ADICIÓN: Mensaje de advertencia condicional */}
+            {isViewing && (
+              (formData.estadoChequeNombre === ESTADO_CHEQUE.DEPOSITADO ||
+                formData.estadoChequeNombre === ESTADO_CHEQUE.COBRADO)
+            ) ? (
+              <p className="mt-1 text-sm font-semibold text-red-600">
+                Al guardar el registro se **{isRecibido ? 'sumará' : 'restará'}** del flujo de caja diario.
+              </p>
+            ) : (
+              // Mensaje de ayuda por defecto o en modo creación
+              <p className="mt-1 text-xs text-gray-500">
+                {isViewing ? 'Puede actualizar el estado del cheque aquí.' : isRecibido ? 'Inicia como PENDIENTE.' : 'Inicia como ENTREGADO.'}
+              </p>
+            )}
+          </div>
+
+
           {/* ID del Cheque (Solo visible en modo visualización) */}
           {isViewing && (
             <div className='hidden'>
@@ -520,15 +618,13 @@ export const ChequesForm = () => {
             {isViewing ? 'Cerrar' : 'Cancelar'} {/* 💡 Texto condicional */}
           </button>
 
-          {/* 💡 MODIFICACION: Solo mostrar el botón "Guardar" en modo CREACIÓN */}
-          {!isViewing && (
-            <button
-              type="submit"
-              className="py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-            >
-              Guardar Cheque
-            </button>
-          )}
+          {/* 💡 MODIFICACION: Botón único de envío. Muestra Actualizar o Guardar. */}
+          <button
+            type="submit"
+            className="py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+          >
+            {isViewing ? 'Actualizar Cheque' : 'Guardar Cheque'}
+          </button>
         </div>
       </form>
 
