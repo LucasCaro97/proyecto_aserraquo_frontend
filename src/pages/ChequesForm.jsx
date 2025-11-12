@@ -4,7 +4,10 @@ import {
   X,
   ArrowUpCircle,
   ArrowDownCircle,
-  Loader2 // 💡 MODIFICACION: Se añade para mostrar el estado de carga
+  Loader2,
+  Upload,
+  ChevronDown, 
+  ChevronUp 
 } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
@@ -15,6 +18,7 @@ const TIPO_CHEQUE = {
   EMITIDO: 'EMITIDO',
   RECIBIDO: 'RECIBIDO'
 };
+// ... (rest of ESTADO_CHEQUE, ESTADOS_EMITIDO, ESTADOS_RECIBIDO, CATEGORIA_CHEQUE, emptyStringToNull)
 
 const ESTADO_CHEQUE = {
   PENDIENTE: 'PENDIENTE',
@@ -56,6 +60,11 @@ export const ChequesForm = () => {
   const [cuentasPropias, setCuentasPropias] = useState([]);
   const [bancosTerceros, setBancosTerceros] = useState([]);
   const [loading, setLoading] = useState(true); // Indicador de carga de dependencias
+  const [isImportVisible, setIsImportVisible] = useState(false);
+
+  // 💡 NUEVO ESTADO: Para manejar el archivo de Excel
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [loadingImport, setLoadingImport] = useState(false); // Indicador de carga para la importación
 
   const [isModalOpen, setIsModalOpen] = useState(false);
 
@@ -94,6 +103,8 @@ export const ChequesForm = () => {
   const { chequeId } = useParams();
   const isViewing = !!chequeId;
   const [loadingCheque, setLoadingCheque] = useState(isViewing); // Solo carga si es modo visualización
+
+  // ... (useEffect para la lógica de estado inicial)
 
   // 💡 REGLA DE NEGOCIO: Establecer el estado inicial según el TipoCheque
   useEffect(() => {
@@ -146,6 +157,7 @@ export const ChequesForm = () => {
     fetchDependencies();
   }, [apiUrl]);
 
+  // ... (useEffect para fetchChequeDetails)
   useEffect(() => {
     // 1. Verificación del modo: Solo se ejecuta si tenemos un ID
     if (!chequeId) {
@@ -218,25 +230,81 @@ export const ChequesForm = () => {
     }
   };
 
+  const handleFileChange = (e) => {
+    // 💡 NUEVO HANDLER: Captura el archivo seleccionado
+    const file = e.target.files[0];
+    setSelectedFile(file);
+    // Limpiar mensajes de error/éxito del formulario principal
+    setError(null);
+    setSuccess(null); 
+  };
+  
+  const handleImportExcel = async (e) => {
+    e.preventDefault();
+
+    if (!selectedFile) {
+        setError("Debe seleccionar un archivo Excel para importar.");
+        return;
+    }
+    
+    // 💡 IMPORTANTE: Resetear los estados de feedback
+    setError(null);
+    setSuccess(null);
+    setLoadingImport(true);
+
+    const data = new FormData();
+    // La clave 'file' debe coincidir con @RequestParam("file") del backend
+    data.append('file', selectedFile);
+
+    try {
+        const url = `${apiUrl}/cheques/importar-excel`;
+        
+        // 💡 LLAMADA POST con el objeto FormData. Axios automáticamente configura el 
+        // Content-Type a multipart/form-data.
+        const response = await axios.post(url, data, {
+            headers: {
+                // No es necesario definir 'Content-Type', Axios lo hace por el FormData.
+            }
+        });
+
+        setSuccess(`¡Importación exitosa! Se han creado ${response.data.length} nuevos cheques.`);
+        // Opcional: limpiar el input de archivo
+        setSelectedFile(null);
+        document.getElementById('excelFile').value = '';
+
+    } catch (err) {
+        let errorMessage = "Error desconocido al procesar la importación.";
+
+        if (err.response) {
+            // Error de negocio o validación del backend
+            // 1. Verificar si la API envió un cuerpo de error JSON
+            const errorData = err.response.data;
+            
+            // 2. Intentar acceder a la propiedad específica "errorMessage"
+            if(errorData && errorData.errorMessage)
+            errorMessage = `Error de Importación (${errorData.errorCode}): ${errorData.errorMessage}`;
+           
+            // 3. Si no hay "errorMessage", usar el mensaje HTTP o uno genérico
+            } else if (err.response.status) {
+                 errorMessage = `Error ${errorData.errorCode}: No se pudo completar la importación. Verifique el formato del archivo.`;
+            }
+        
+        setError(errorMessage);
+
+    } finally {
+        setLoadingImport(false);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    // 💡 IMPORTANTE: Si estamos en modo visualización, y solo se cambia el estado, 
+    // y no hay otros campos obligatorios que validar, esta validación de campos 
+    // requeridos se puede simplificar, pero la dejamos por seguridad.
+
     setError(null);
     setSuccess(null);
-
-
-
-    // 💡 REGLA DE NEGOCIO: VALIDACIÓN DE CAMPOS CLAVE
-    const fechaEmision = new Date(formData.fechaEmision);
-    const fechaCobro = new Date(formData.fechaCobro);
-
-    //Verifico que las fechas existan antes de comparar
-    if (formData.fechaEmision && formData.fechaCobro) {
-      if (fechaCobro < fechaEmision) {
-        setError("La Fecha de Cobro/Vencimiento no puede ser anterior a la Fecha de Emisión.");
-        return; //Detengo el envio del formulario
-      }
-    }
 
 
     if (formData.tipoChequeNombre === TIPO_CHEQUE.RECIBIDO) {
@@ -250,6 +318,29 @@ export const ChequesForm = () => {
         return;
       }
     }
+    
+    // 1. REGLA DE NEGOCIO: Validar fechas para evitar que la fecha de recepción (emision) sea muy posterior a la fecha de cobro.
+    const fechaEmision = new Date(formData.fechaEmision); // Fecha de Carga
+    const fechaCobro = new Date(formData.fechaCobro);       // Fecha de Vencimiento
+
+    if (formData.fechaEmision && formData.fechaCobro) {
+        const fechaLimitePosterior = new Date(fechaCobro);
+        // Sumamos 30 días a la fecha de cobro/vencimiento
+        fechaLimitePosterior.setDate(fechaCobro.getDate() + 30); 
+
+        // Validación 1: Fecha de cobro no anterior a la fecha de emisión (Carga)
+        if (fechaCobro < fechaEmision) {
+            setError("La Fecha de Cobro/Vencimiento no puede ser anterior a la Fecha de Recepción (Fecha de Carga).");
+            return; 
+        }
+
+        // Validación 2: Fecha de recepción (Carga) no puede ser más de 30 días posterior a la de cobro.
+        if (fechaEmision > fechaLimitePosterior) {
+            setError("La Fecha de Recepción (Carga) no puede ser mayor a 30 días posteriores a la Fecha de Cobro/Vencimiento.");
+            return; 
+        }
+    }
+
 
     // 2. CREACIÓN DEL DTO SIMPLIFICADA
     const chequeData = {
@@ -280,7 +371,7 @@ export const ChequesForm = () => {
         return;
 
       } else {
-
+        // MODO CREACIÓN (POST)
         response = await axios.post(url, chequeData);
         setSuccess(`Cheque #${response.data.numeroCheque} registrado con éxito. ID: ${response.data.id}`);
 
@@ -302,7 +393,11 @@ export const ChequesForm = () => {
 
     } catch (err) {
       if (err.response || err.request) {
-        setError("Error interno del servidor al guardar el cheque. Por favor, contacte a soporte.");
+        // Asumiendo que el backend envía un error en el cuerpo
+        const detail = err.response && err.response.data && err.response.data.message 
+                     ? err.response.data.message 
+                     : "Error interno del servidor al guardar el cheque.";
+        setError(`Error: ${detail}. Por favor, contacte a soporte.`);
       } else {
         // Errores de JavaScript/código local
         setError("Ocurrió un error inesperado en la aplicación.");
@@ -340,8 +435,64 @@ export const ChequesForm = () => {
       {error && <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4 flex items-center"><X className="w-5 h-5 mr-2" />{error}</div>}
       {success && <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">{success}</div>}
 
+      {/* 💡 NUEVA SECCIÓN: Importación de Cheques desde Excel (Solo en modo CREACIÓN y CON PLEGADO) */}
+      {!isViewing && (
+        <div className="mb-8 border border-gray-200 rounded-xl overflow-hidden">
+          
+          {/* TÍTULO Y BOTÓN DE TOGGLE */}
+          <button
+            type="button"
+            onClick={() => setIsImportVisible(p => !p)}
+            className="w-full p-4 bg-gray-50 hover:bg-gray-100 transition-colors flex justify-between items-center text-lg font-semibold text-gray-800"
+            aria-expanded={isImportVisible}
+          >
+            <span className="flex items-center">
+              <Upload className="w-5 h-5 mr-3 text-blue-600" /> Importar Cheques Masivamente
+            </span>
+            {isImportVisible ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+          </button>
+          
+          {/* CONTENIDO PLEGABLE */}
+          {isImportVisible && (
+            <div className="p-4 bg-white">
+              <form onSubmit={handleImportExcel} className="flex flex-col sm:flex-row gap-3">
+                <input
+                  type="file"
+                  id="excelFile"
+                  name="file"
+                  accept=".xls, .xlsx"
+                  onChange={handleFileChange}
+                  className="flex-grow file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-100 file:text-blue-700 hover:file:bg-blue-200 border border-gray-300 rounded-md p-1"
+                  disabled={loadingImport}
+                />
+                <button
+                  type="submit"
+                  disabled={!selectedFile || loadingImport}
+                  className="py-2 px-6 rounded-md shadow-sm text-sm font-medium text-white transition-colors 
+                            flex items-center justify-center 
+                            bg-teal-600 hover:bg-teal-700 disabled:bg-gray-400"
+                >
+                  {loadingImport ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Importando...
+                    </>
+                  ) : (
+                    'Procesar Excel'
+                  )}
+                </button>
+              </form>
+              <p className="mt-2 text-sm text-gray-600">
+                Asegúrese de que el archivo tenga el formato de columnas correcto.
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+      {/* 💡 FIN NUEVA SECCIÓN PLEGABLE */}
+      
       <form onSubmit={handleSubmit} className="space-y-6">
-
+        {/* ... (el resto del formulario existente para la carga individual) ... */}
         {/* Selector de Tipo de Cheque */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="col-span-1">
@@ -404,9 +555,9 @@ export const ChequesForm = () => {
             />
           </div>
 
-          {/* Fecha de Emisión */}
+          {/* Fecha de Recepcion */}
           <div>
-            <label htmlFor="fechaEmision" className="block text-sm font-medium text-gray-700">Fecha de Emisión *</label>
+            <label htmlFor="fechaEmision" className="block text-sm font-medium text-gray-700">Fecha de Recepcion *</label>
             <input
               type="date"
               name="fechaEmision"
@@ -432,7 +583,6 @@ export const ChequesForm = () => {
             />
           </div>
         </div>
-
         {/* Terceros y Cuentas */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
@@ -621,7 +771,8 @@ export const ChequesForm = () => {
           {/* 💡 MODIFICACION: Botón único de envío. Muestra Actualizar o Guardar. */}
           <button
             type="submit"
-            className="py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+            disabled={loadingImport} // Deshabilitado si la importación está en curso
+            className="py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:bg-blue-400"
           >
             {isViewing ? 'Actualizar Cheque' : 'Guardar Cheque'}
           </button>
