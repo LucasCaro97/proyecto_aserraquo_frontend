@@ -6,8 +6,8 @@ import {
   ArrowDownCircle,
   Loader2,
   Upload,
-  ChevronDown, 
-  ChevronUp 
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
@@ -61,6 +61,7 @@ export const ChequesForm = () => {
   const [bancosTerceros, setBancosTerceros] = useState([]);
   const [loading, setLoading] = useState(true); // Indicador de carga de dependencias
   const [isImportVisible, setIsImportVisible] = useState(false);
+  const [isEmitidoImportVisible, setIsEmitidoImportVisible] = useState(false);
 
   // 💡 NUEVO ESTADO: Para manejar el archivo de Excel
   const [selectedFile, setSelectedFile] = useState(null);
@@ -236,17 +237,17 @@ export const ChequesForm = () => {
     setSelectedFile(file);
     // Limpiar mensajes de error/éxito del formulario principal
     setError(null);
-    setSuccess(null); 
+    setSuccess(null);
   };
-  
+
   const handleImportExcel = async (e) => {
     e.preventDefault();
 
     if (!selectedFile) {
-        setError("Debe seleccionar un archivo Excel para importar.");
-        return;
+      setError("Debe seleccionar un archivo Excel para importar.");
+      return;
     }
-    
+
     // 💡 IMPORTANTE: Resetear los estados de feedback
     setError(null);
     setSuccess(null);
@@ -257,42 +258,42 @@ export const ChequesForm = () => {
     data.append('file', selectedFile);
 
     try {
-        const url = `${apiUrl}/cheques/importar-excel`;
-        
-        // 💡 LLAMADA POST con el objeto FormData. Axios automáticamente configura el 
-        // Content-Type a multipart/form-data.
-        const response = await axios.post(url, data, {
-            headers: {
-                // No es necesario definir 'Content-Type', Axios lo hace por el FormData.
-            }
-        });
+      const url = `${apiUrl}${importUrl}`;
 
-        setSuccess(`¡Importación exitosa! Se han creado ${response.data.length} nuevos cheques.`);
-        // Opcional: limpiar el input de archivo
-        setSelectedFile(null);
-        document.getElementById('excelFile').value = '';
+      // 💡 LLAMADA POST con el objeto FormData. Axios automáticamente configura el 
+      // Content-Type a multipart/form-data.
+      const response = await axios.post(url, data, {
+        headers: {
+          // No es necesario definir 'Content-Type', Axios lo hace por el FormData.
+        }
+      });
+
+      setSuccess(`¡Importación exitosa! Se han creado ${response.data.length} nuevos cheques.`);
+      // Opcional: limpiar el input de archivo
+      setSelectedFile(null);
+      document.getElementById('excelFile').value = '';
 
     } catch (err) {
-        let errorMessage = "Error desconocido al procesar la importación.";
+      let errorMessage = "Error desconocido al procesar la importación.";
 
-        if (err.response) {
-            // Error de negocio o validación del backend
-            // 1. Verificar si la API envió un cuerpo de error JSON
-            const errorData = err.response.data;
-            
-            // 2. Intentar acceder a la propiedad específica "errorMessage"
-            if(errorData && errorData.errorMessage)
-            errorMessage = `Error de Importación (${errorData.errorCode}): ${errorData.errorMessage}`;
-           
-            // 3. Si no hay "errorMessage", usar el mensaje HTTP o uno genérico
-            } else if (err.response.status) {
-                 errorMessage = `Error ${errorData.errorCode}: No se pudo completar la importación. Verifique el formato del archivo.`;
-            }
-        
-        setError(errorMessage);
+      if (err.response) {
+        // Error de negocio o validación del backend
+        // 1. Verificar si la API envió un cuerpo de error JSON
+        const errorData = err.response.data;
+
+        // 2. Intentar acceder a la propiedad específica "errorMessage"
+        if (errorData && errorData.errorMessage)
+          errorMessage = `Error de Importación (${errorData.errorCode}): ${errorData.errorMessage}`;
+
+        // 3. Si no hay "errorMessage", usar el mensaje HTTP o uno genérico
+      } else if (err.response.status) {
+        errorMessage = `Error ${errorData.errorCode}: No se pudo completar la importación. Verifique el formato del archivo.`;
+      }
+
+      setError(errorMessage);
 
     } finally {
-        setLoadingImport(false);
+      setLoadingImport(false);
     }
   };
 
@@ -318,27 +319,27 @@ export const ChequesForm = () => {
         return;
       }
     }
-    
+
     // 1. REGLA DE NEGOCIO: Validar fechas para evitar que la fecha de recepción (emision) sea muy posterior a la fecha de cobro.
     const fechaEmision = new Date(formData.fechaEmision); // Fecha de Carga
     const fechaCobro = new Date(formData.fechaCobro);       // Fecha de Vencimiento
 
     if (formData.fechaEmision && formData.fechaCobro) {
-        const fechaLimitePosterior = new Date(fechaCobro);
-        // Sumamos 30 días a la fecha de cobro/vencimiento
-        fechaLimitePosterior.setDate(fechaCobro.getDate() + 30); 
+      const fechaLimitePosterior = new Date(fechaCobro);
+      // Sumamos 30 días a la fecha de cobro/vencimiento
+      fechaLimitePosterior.setDate(fechaCobro.getDate() + 30);
 
-        // Validación 1: Fecha de cobro no anterior a la fecha de emisión (Carga)
-        if (fechaCobro < fechaEmision) {
-            setError("La Fecha de Cobro/Vencimiento no puede ser anterior a la Fecha de Recepción (Fecha de Carga).");
-            return; 
-        }
+      // Validación 1: Fecha de cobro no anterior a la fecha de emisión (Carga)
+      if (fechaCobro < fechaEmision) {
+        setError("La Fecha de Cobro/Vencimiento no puede ser anterior a la Fecha de Recepción (Fecha de Carga).");
+        return;
+      }
 
-        // Validación 2: Fecha de recepción (Carga) no puede ser más de 30 días posterior a la de cobro.
-        if (fechaEmision > fechaLimitePosterior) {
-            setError("La Fecha de Recepción (Carga) no puede ser mayor a 30 días posteriores a la Fecha de Cobro/Vencimiento.");
-            return; 
-        }
+      // Validación 2: Fecha de recepción (Carga) no puede ser más de 30 días posterior a la de cobro.
+      if (fechaEmision > fechaLimitePosterior) {
+        setError("La Fecha de Recepción (Carga) no puede ser mayor a 30 días posteriores a la Fecha de Cobro/Vencimiento.");
+        return;
+      }
     }
 
 
@@ -362,7 +363,7 @@ export const ChequesForm = () => {
     try {
       let response;
       let url = `${apiUrl}/cheques`;
-      
+
       if (isViewing) {
         // MODO ACTUALIZACIÓN (PUT): El ID va en la URL.
         url = `${apiUrl}/cheques/${chequeId}`;
@@ -394,9 +395,9 @@ export const ChequesForm = () => {
     } catch (err) {
       if (err.response || err.request) {
         // Asumiendo que el backend envía un error en el cuerpo
-        const detail = err.response && err.response.data && err.response.data.message 
-                     ? err.response.data.message 
-                     : "Error interno del servidor al guardar el cheque.";
+        const detail = err.response && err.response.data && err.response.data.message
+          ? err.response.data.message
+          : "Error interno del servidor al guardar el cheque.";
         setError(`Error: ${detail}. Por favor, contacte a soporte.`);
       } else {
         // Errores de JavaScript/código local
@@ -408,6 +409,18 @@ export const ChequesForm = () => {
 
   const isRecibido = formData.tipoChequeNombre === TIPO_CHEQUE.RECIBIDO;
   const isFormLoading = loading || loadingCheque; // 💡 Indicador global de carga
+  const tituloFormulario = formData.tipoChequeNombre === TIPO_CHEQUE.EMITIDO
+    ? 'Importar Cheques Emitidos Propios'
+    : 'Importar Cheques Recibidos de Terceros';
+
+  const ENDPOINTS = {
+    RECIBIDO: '/cheques/importar-excel', // Mantener el actual (asumido)
+    EMITIDO: '/cheques/importar-excel-cheques-propios',    // Nuevo endpoint
+  };
+
+  const importUrl = formData.tipoChequeNombre === TIPO_CHEQUE.EMITIDO
+    ? ENDPOINTS.EMITIDO
+    : ENDPOINTS.RECIBIDO; // O el endpoint original si es el caso
 
 
   // Pantalla de Carga
@@ -419,7 +432,7 @@ export const ChequesForm = () => {
       </div>
     );
   }
-  
+
   return (
     <div className="max-w-4xl mx-auto p-6 bg-white rounded-xl shadow-lg">
       <div className="flex items-center space-x-4 mb-8 border-b pb-4">
@@ -438,7 +451,7 @@ export const ChequesForm = () => {
       {/* 💡 NUEVA SECCIÓN: Importación de Cheques desde Excel (Solo en modo CREACIÓN y CON PLEGADO) */}
       {!isViewing && (
         <div className="mb-8 border border-gray-200 rounded-xl overflow-hidden">
-          
+
           {/* TÍTULO Y BOTÓN DE TOGGLE */}
           <button
             type="button"
@@ -447,11 +460,11 @@ export const ChequesForm = () => {
             aria-expanded={isImportVisible}
           >
             <span className="flex items-center">
-              <Upload className="w-5 h-5 mr-3 text-blue-600" /> Importar Cheques Masivamente
+              <Upload className="w-5 h-5 mr-3 text-blue-600" /> {tituloFormulario}
             </span>
             {isImportVisible ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
           </button>
-          
+
           {/* CONTENIDO PLEGABLE */}
           {isImportVisible && (
             <div className="p-4 bg-white">
@@ -490,7 +503,7 @@ export const ChequesForm = () => {
         </div>
       )}
       {/* 💡 FIN NUEVA SECCIÓN PLEGABLE */}
-      
+
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* ... (el resto del formulario existente para la carga individual) ... */}
         {/* Selector de Tipo de Cheque */}
@@ -557,7 +570,9 @@ export const ChequesForm = () => {
 
           {/* Fecha de Recepcion */}
           <div>
-            <label htmlFor="fechaEmision" className="block text-sm font-medium text-gray-700">Fecha de Recepcion *</label>
+            <label htmlFor="fechaEmision" className="block text-sm font-medium text-gray-700">{formData.tipoChequeNombre === TIPO_CHEQUE.EMITIDO
+              ? 'Fecha de emisión'
+              : 'Fecha de recepción'} *</label>
             <input
               type="date"
               name="fechaEmision"

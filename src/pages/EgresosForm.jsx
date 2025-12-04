@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'; // Agregué useCallback
-import { 
-    DollarSign, FileText, User, Save, ArrowLeft, AlertCircle, CheckCircle, 
-    Plus, Eye, EyeOff, ListPlus, TrendingDown, Star, CreditCard, Banknote, ClipboardCheck
+import {
+    DollarSign, FileText, User, Save, ArrowLeft, AlertCircle, CheckCircle,
+    Plus, Eye, EyeOff, ListPlus, TrendingDown, Star, CreditCard, Banknote, ClipboardCheck, Pencil, Trash2
 } from 'lucide-react';
 import { useUsuario } from '../hooks/useUsuario';
 import { useRegistrosFinancieros } from '../hooks/useRegistrosFinancieros';
@@ -10,7 +10,7 @@ import axios from 'axios';
 import { CrearRegistroModal } from '../components/CrearRegistroModal';
 
 // Definimos un valor Epsilon (tolerancia) para comparaciones de punto flotante.
-const EPSILON = 0.000001; 
+const EPSILON = 0.000001;
 
 export const EgresosForm = ({ onBack, onSuccess }) => {
     // Estados del formulario de Tipo de Egreso
@@ -22,10 +22,10 @@ export const EgresosForm = ({ onBack, onSuccess }) => {
     const [observacionEgreso, setObservacionEgreso] = useState('');
     const [tipoEgresoSeleccionado, setTipoEgresoSeleccionado] = useState('');
     const [registroFinancieroDiario, setRegistroFinancieroDiario] = useState('');
-    const [metodoPagoSeleccionado, setMetodoPagoSeleccionado] = useState(''); 
-    
+    const [metodoPagoSeleccionado, setMetodoPagoSeleccionado] = useState('');
+
     // Estados del formulario de Método de Pago
-    const [nombreMetodoPago, setNombreMetodoPago] = useState(''); 
+    const [nombreMetodoPago, setNombreMetodoPago] = useState('');
 
     // --- ESTADOS PARA GESTIÓN DE CHEQUES ---
     const [chequesDisponibles, setChequesDisponibles] = useState([]);
@@ -37,32 +37,36 @@ export const EgresosForm = ({ onBack, onSuccess }) => {
     // Estados para las tablas de últimos registros
     const [ultimosTiposEgreso, setUltimosTiposEgreso] = useState([]);
     const [ultimosEgresos, setUltimosEgresos] = useState([]);
-    const [ultimosMetodosPago, setUltimosMetodosPago] = useState([]); 
-    
+    const [ultimosMetodosPago, setUltimosMetodosPago] = useState([]);
+
     const [isLoadingUltimosTiposEgreso, setIsLoadingUltimosTiposEgreso] = useState(false);
     const [isLoadingUltimosEgresos, setIsLoadingUltimosEgresos] = useState(false);
-    const [isLoadingUltimosMetodosPago, setIsLoadingUltimosMetodosPago] = useState(false); 
-    
+    const [isLoadingUltimosMetodosPago, setIsLoadingUltimosMetodosPago] = useState(false);
+
     const [mostrarTablaTipos, setMostrarTablaTipos] = useState(true);
     const [mostrarTablaEgresos, setMostrarTablaEgresos] = useState(true);
-    const [mostrarTablaMetodosPago, setMostrarTablaMetodosPago] = useState(true); 
+    const [mostrarTablaMetodosPago, setMostrarTablaMetodosPago] = useState(true);
 
     // Estados para tipos de egreso y prioridades disponibles
     const [tiposEgresoDisponibles, setTiposEgresoDisponibles] = useState([]);
     const [prioridadesDisponibles, setPrioridadesDisponibles] = useState([]);
-    const [metodosPagoDisponibles, setMetodosPagoDisponibles] = useState([]); 
+    const [metodosPagoDisponibles, setMetodosPagoDisponibles] = useState([]);
     const [isLoadingTiposEgreso, setIsLoadingTiposEgreso] = useState(false);
     const [isLoadingPrioridades, setIsLoadingPrioridades] = useState(false);
-    const [isLoadingMetodosPago, setIsLoadingMetodosPago] = useState(false); 
+    const [isLoadingMetodosPago, setIsLoadingMetodosPago] = useState(false);
 
     // Variables
     const apiUrl = import.meta.env.VITE_API_URL;
 
+    // Almacena el objeto completo a editar
+    const [tipoEgresoAEditar, setTipoEgresoAEditar] = useState(null);
+    const [isEditing, setIsEditing] = useState(false);
+
     // Estados de UI
     const [isLoadingTipoEgreso, setIsLoadingTipoEgreso] = useState(false);
     const [isLoadingEgreso, setIsLoadingEgreso] = useState(false);
-    const [isLoadingMetodoPago, setIsLoadingMetodoPago] = useState(false); 
-    
+    const [isLoadingMetodoPago, setIsLoadingMetodoPago] = useState(false);
+
     const [isCreatingRegistro, setIsCreatingRegistro] = useState(false);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
@@ -87,7 +91,7 @@ export const EgresosForm = ({ onBack, onSuccess }) => {
         if (!metodoId) return false;
         // Buscamos el objeto del método de pago por su ID
         const metodo = metodosPagoDisponibles.find(m => m.id.toString() === metodoId);
-        
+
         // Verificamos si el método existe y si su nombre contiene "cheque" (insensible a mayúsculas)
         return metodo && metodo.nombre.toLowerCase().includes('cheque');
     }, [metodosPagoDisponibles]);
@@ -97,8 +101,8 @@ export const EgresosForm = ({ onBack, onSuccess }) => {
     const cargarUltimosTiposEgreso = async () => {
         setIsLoadingUltimosTiposEgreso(true);
         try {
-            const response = await axios.get(`${apiUrl}/tipo-egreso`);
-            
+            const response = await axios.get(`${apiUrl}/tipo-egreso/activos`);
+
             setTimeout(() => {
                 setUltimosTiposEgreso(response.data);
                 setIsLoadingUltimosTiposEgreso(false);
@@ -113,7 +117,7 @@ export const EgresosForm = ({ onBack, onSuccess }) => {
         setIsLoadingUltimosEgresos(true);
         try {
             const response = await axios.get(`${apiUrl}/egreso/sorted-top10-desc`);
-            
+
             setTimeout(() => {
                 setUltimosEgresos(response.data);
                 setIsLoadingUltimosEgresos(false);
@@ -128,9 +132,9 @@ export const EgresosForm = ({ onBack, onSuccess }) => {
         setIsLoadingUltimosMetodosPago(true);
         try {
             const response = await axios.get(`${apiUrl}/medio-de-pago`);
-            
+
             setTimeout(() => {
-                setUltimosMetodosPago(response.data); 
+                setUltimosMetodosPago(response.data);
                 setIsLoadingUltimosMetodosPago(false);
             }, 300);
         } catch (error) {
@@ -142,7 +146,7 @@ export const EgresosForm = ({ onBack, onSuccess }) => {
     const cargarMetodosPagoDisponibles = async () => {
         setIsLoadingMetodosPago(true);
         try {
-            const response = await axios.get(`${apiUrl}/medio-de-pago`); 
+            const response = await axios.get(`${apiUrl}/medio-de-pago`);
             setMetodosPagoDisponibles(response.data);
         } catch (error) {
             console.error('Error al cargar métodos de pago disponibles:', error);
@@ -167,7 +171,7 @@ export const EgresosForm = ({ onBack, onSuccess }) => {
     const cargarPrioridadesDisponibles = async () => {
         setIsLoadingPrioridades(true);
         try {
-            const response = await axios.get(`${apiUrl}/prioridad`);
+            const response = await axios.get(`${apiUrl}/prioridad/activos`);
             setPrioridadesDisponibles(response.data);
         } catch (error) {
             console.error('Error al cargar prioridades disponibles:', error);
@@ -180,12 +184,12 @@ export const EgresosForm = ({ onBack, onSuccess }) => {
     const cargarChequesDisponibles = async () => {
         setIsLoadingCheques(true);
         setError('');
-        setChequesDisponibles([]); 
+        setChequesDisponibles([]);
 
         try {
             // Asumiendo un endpoint para cheques pendientes de un egreso
-            const response = await axios.get(`${apiUrl}/cheques/disponibles/EGRESO`); 
-            
+            const response = await axios.get(`${apiUrl}/cheques/disponibles/EGRESO`);
+
             setTimeout(() => {
                 setChequesDisponibles(response.data);
                 setIsLoadingCheques(false);
@@ -203,10 +207,10 @@ export const EgresosForm = ({ onBack, onSuccess }) => {
         if (usuario?.id) {
             cargarUltimosTiposEgreso();
             cargarUltimosEgresos();
-            cargarUltimosMetodosPago(); 
+            cargarUltimosMetodosPago();
             cargarTiposEgresoDisponibles();
             cargarPrioridadesDisponibles();
-            cargarMetodosPagoDisponibles(); 
+            cargarMetodosPagoDisponibles();
             cargarRegistrosFinancieros();
         }
     }, [usuario]);
@@ -214,7 +218,7 @@ export const EgresosForm = ({ onBack, onSuccess }) => {
     // --- EFECTO PARA CARGAR CHEQUES PENDIENTES BASADO EN EL NOMBRE ---
     useEffect(() => {
         const isChequeSelected = esMetodoCheque(metodoPagoSeleccionado);
-        
+
         // 1. Cargar cheques si un método que incluye "cheque" está seleccionado
         if (activeTab === 'egreso' && isChequeSelected) {
             cargarChequesDisponibles();
@@ -224,13 +228,13 @@ export const EgresosForm = ({ onBack, onSuccess }) => {
             setChequesSeleccionados([]);
         }
     }, [metodoPagoSeleccionado, activeTab, esMetodoCheque]); // esMetodoCheque se agregó a las dependencias porque usa metodosPagoDisponibles
-    
+
     // --- HANDLER DE SELECCIÓN DE CHEQUES ---
     const handleChequeSelection = (chequeId) => {
         // Asegurarse de que el ID sea string para la comparación consistente
-        const idString = chequeId.toString(); 
+        const idString = chequeId.toString();
 
-        setChequesSeleccionados(prev => 
+        setChequesSeleccionados(prev =>
             prev.includes(idString)
                 ? prev.filter(id => id !== idString) // Deseleccionar
                 : [...prev, idString] // Seleccionar
@@ -246,7 +250,7 @@ export const EgresosForm = ({ onBack, onSuccess }) => {
 
         try {
             const nuevoRegistro = await crearRegistroDelDia(fecha);
-            
+
             if (nuevoRegistro && nuevoRegistro.id) {
                 setRegistroFinancieroDiario(nuevoRegistro.id.toString());
                 setSuccess('Registro del día actual creado exitosamente');
@@ -261,6 +265,11 @@ export const EgresosForm = ({ onBack, onSuccess }) => {
 
     const handleSubmitTipoEgreso = async (e) => {
         e.preventDefault();
+
+        if (isEditing) {
+            await handleUpdateTipoEgreso(); // Llamar a la función de actualización
+            return;
+        }
 
         // Validaciones
         if (!nombreTipoEgreso.trim()) {
@@ -285,7 +294,7 @@ export const EgresosForm = ({ onBack, onSuccess }) => {
             };
 
             const response = await axios.post(`${apiUrl}/tipo-egreso`, nuevoTipoEgreso);
-            
+
             setTimeout(() => {
                 setSuccess('Tipo de egreso registrado exitosamente');
                 // Limpiar formulario
@@ -337,7 +346,7 @@ export const EgresosForm = ({ onBack, onSuccess }) => {
             setError('Error: No se pudo obtener la información del usuario');
             return;
         }
-        
+
         const montoEgresoFloat = parseFloat(montoEgreso);
         const isChequeMethod = esMetodoCheque(metodoPagoSeleccionado); // <-- USO DINÁMICO
 
@@ -353,11 +362,11 @@ export const EgresosForm = ({ onBack, onSuccess }) => {
                 const cheque = chequesDisponibles.find(c => c.id.toString() === id);
                 return sum + (cheque ? cheque.monto : 0);
             }, 0);
-            
+
             // 3. Validación de monto vs cheques seleccionados usando EPSILON
             if (Math.abs(totalCheques - montoEgresoFloat) > EPSILON) {
-                 setError(`El monto del egreso (${formatearMoneda(montoEgresoFloat)}) no coincide con el total de los cheques seleccionados (${formatearMoneda(totalCheques)}). Por favor, ajuste el monto o la selección de cheques.`);
-                 return;
+                setError(`El monto del egreso (${formatearMoneda(montoEgresoFloat)}) no coincide con el total de los cheques seleccionados (${formatearMoneda(totalCheques)}). Por favor, ajuste el monto o la selección de cheques.`);
+                return;
             }
         }
 
@@ -379,7 +388,7 @@ export const EgresosForm = ({ onBack, onSuccess }) => {
             };
 
             const response = await axios.post(`${apiUrl}/egreso`, nuevoEgreso);
-            
+
             setTimeout(() => {
                 setSuccess('Egreso registrado exitosamente');
                 // Limpiar formulario y estados de cheque
@@ -387,7 +396,7 @@ export const EgresosForm = ({ onBack, onSuccess }) => {
                 setObservacionEgreso('');
                 setTipoEgresoSeleccionado('');
                 setRegistroFinancieroDiario('');
-                setMetodoPagoSeleccionado(''); 
+                setMetodoPagoSeleccionado('');
                 setChequesSeleccionados([]); // Limpiar cheques seleccionados
                 setChequesDisponibles([]); // Limpiar cheques disponibles
 
@@ -395,7 +404,7 @@ export const EgresosForm = ({ onBack, onSuccess }) => {
 
                 // Recargar la tabla de últimos egresos
                 cargarUltimosEgresos();
-                
+
                 if (onSuccess) {
                     setTimeout(() => onSuccess(), 1500);
                 }
@@ -427,8 +436,8 @@ export const EgresosForm = ({ onBack, onSuccess }) => {
                 estado: true
             };
 
-            const response = await axios.post(`${apiUrl}/medio-de-pago`, nuevoMetodoPago); 
-            
+            const response = await axios.post(`${apiUrl}/medio-de-pago`, nuevoMetodoPago);
+
             setTimeout(() => {
                 setSuccess('Método de pago registrado exitosamente');
                 // Limpiar formulario
@@ -436,8 +445,8 @@ export const EgresosForm = ({ onBack, onSuccess }) => {
                 setIsLoadingMetodoPago(false);
 
                 // Recargar las listas de métodos de pago
-                cargarUltimosMetodosPago(); 
-                cargarMetodosPagoDisponibles(); 
+                cargarUltimosMetodosPago();
+                cargarMetodosPagoDisponibles();
 
                 if (onSuccess) {
                     setTimeout(() => onSuccess(), 1500);
@@ -466,7 +475,7 @@ export const EgresosForm = ({ onBack, onSuccess }) => {
         const partes = fechaString.split('T')[0].split('-');
         return `${partes[2]}-${partes[1]}-${partes[0]}`;
     };
-    
+
     const formatearFechaConDia = (fechaString) => {
         if (!fechaString) return '';
         const partes = fechaString.split('-');
@@ -482,6 +491,125 @@ export const EgresosForm = ({ onBack, onSuccess }) => {
             minimumFractionDigits: 2
         }).format(valor);
     };
+
+    const handleSafeDeleteTipoEgreso = async (idTipoEgreso) => {
+        if (!window.confirm(`¿Estás seguro de que deseas eliminar el Tipo de Egreso con ID: ${idTipoEgreso}? Esta acción puede ser reversible en el backend, pero el tipo no estará disponible para nuevos egresos.`)) {
+            return;
+        }
+
+        setError('');
+        setSuccess('');
+
+        try {
+            // Petición DELETE al endpoint específico
+            const response = await axios.delete(`${apiUrl}/tipo-egreso/safeDelete/${idTipoEgreso}`);
+
+            // Verificar si el 'safe delete' fue exitoso.
+            if (response.status === 200 || response.status === 204) {
+                setSuccess(`Tipo de Egreso ID ${idTipoEgreso} eliminado (lógica) exitosamente.`);
+
+                // Recargar las tablas y listas después de la eliminación
+                cargarUltimosTiposEgreso();
+                cargarTiposEgresoDisponibles();
+            } else {
+                setError('Error al eliminar (lógica) el tipo de egreso. Inténtalo de nuevo.');
+            }
+
+
+        } catch (error) {
+            console.error('Error al realizar el safe delete del tipo de egreso:', error);
+            // Capturar mensaje de error específico del backend si está disponible
+            setError(error.response?.data?.message || 'Error al eliminar (lógica) el tipo de egreso. Inténtalo de nuevo.');
+        }
+    };
+
+    // --- FUNCIÓN PARA INICIAR EL MODO EDICIÓN ---
+    const handleEditTipoEgreso = (tipoEgreso) => {
+        // 1. Cambiar a la pestaña de 'tipoEgreso'
+        setActiveTab('tipoEgreso');
+
+        // 2. Establecer el estado de edición
+        setTipoEgresoAEditar(tipoEgreso);
+        setIsEditing(true);
+
+        // 3. Llenar los campos del formulario con los datos del objeto
+        setNombreTipoEgreso(tipoEgreso.nombre);
+        // Asegúrate de que idPrioridad está disponible en el objeto tipoEgreso
+        setPrioridadSeleccionada(tipoEgreso.prioridad.id);
+        // 4. Limpiar mensajes de estado previos
+        setError('');
+        setSuccess('');
+
+        // Opcional: Desplazarse al formulario
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    // --- FUNCIÓN PARA CANCELAR EL MODO EDICIÓN ---
+    const handleCancelEdit = () => {
+        setTipoEgresoAEditar(null);
+        setIsEditing(false);
+        setNombreTipoEgreso('');
+        setPrioridadSeleccionada('');
+        setError('');
+    };
+
+    const handleUpdateTipoEgreso = async () => {
+        // Validaciones (iguales a las de crear)
+        if (!nombreTipoEgreso.trim()) {
+            setError('El nombre del tipo de egreso es requerido');
+            return;
+        }
+
+        if (!prioridadSeleccionada) {
+            setError('Debe seleccionar una prioridad');
+            return;
+        }
+
+        if (!tipoEgresoAEditar?.id) {
+            setError('Error: ID del tipo de egreso a editar no encontrado.');
+            return;
+        }
+
+        setIsLoadingTipoEgreso(true);
+        setError('');
+        setSuccess('');
+
+        try {
+            const tipoEgresoActualizado = {
+                // Aquí usamos los IDs y estados del objeto original (tipoEgresoAEditar) 
+                // para la consistencia, pero actualizamos los campos modificados.
+                id: tipoEgresoAEditar.id,
+                nombre: nombreTipoEgreso.trim(),
+                idPrioridad: parseInt(prioridadSeleccionada),
+                estado: tipoEgresoAEditar.estado // Mantenemos el estado actual
+            };
+
+            // Petición PUT (o PATCH si tu API lo requiere)
+            const response = await axios.put(`${apiUrl}/tipo-egreso/${tipoEgresoAEditar.id}`, tipoEgresoActualizado);
+
+            setTimeout(() => {
+                setSuccess(`Tipo de egreso "${tipoEgresoActualizado.nombre}" actualizado exitosamente`);
+
+                // Finalizar modo edición
+                handleCancelEdit(); // Limpia estados y desactiva isEditing
+                setIsLoadingTipoEgreso(false);
+
+                // Recargar las tablas y tipos de egreso disponibles
+                cargarUltimosTiposEgreso();
+                cargarTiposEgresoDisponibles();
+
+                if (onSuccess) {
+                    setTimeout(() => onSuccess(), 1500);
+                }
+            }, 1000);
+
+        } catch (error) {
+            console.error('Error al actualizar tipo de egreso:', error);
+            setError('Error al actualizar el tipo de egreso. Inténtalo de nuevo.');
+            setIsLoadingTipoEgreso(false);
+        }
+    };
+
 
     return (
         <div className="min-h-screen bg-gray-50 p-6">
@@ -542,11 +670,10 @@ export const EgresosForm = ({ onBack, onSuccess }) => {
                                     {/* Tab: Nuevo Egreso */}
                                     <button
                                         onClick={() => setActiveTab('egreso')}
-                                        className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
-                                            activeTab === 'egreso'
-                                                ? 'border-blue-500 text-blue-600'
-                                                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                                        }`}
+                                        className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${activeTab === 'egreso'
+                                            ? 'border-blue-500 text-blue-600'
+                                            : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                                            }`}
                                     >
                                         <div className="flex items-center space-x-2">
                                             <TrendingDown className="h-4 w-4" />
@@ -556,11 +683,10 @@ export const EgresosForm = ({ onBack, onSuccess }) => {
                                     {/* Tab: Nuevo Tipo de Egreso */}
                                     <button
                                         onClick={() => setActiveTab('tipoEgreso')}
-                                        className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
-                                            activeTab === 'tipoEgreso'
-                                                ? 'border-blue-500 text-blue-600'
-                                                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                                        }`}
+                                        className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${activeTab === 'tipoEgreso'
+                                            ? 'border-blue-500 text-blue-600'
+                                            : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                                            }`}
                                     >
                                         <div className="flex items-center space-x-2">
                                             <ListPlus className="h-4 w-4" />
@@ -570,11 +696,10 @@ export const EgresosForm = ({ onBack, onSuccess }) => {
                                     {/* Tab: Nuevo Método de Pago */}
                                     <button
                                         onClick={() => setActiveTab('metodoPago')}
-                                        className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
-                                            activeTab === 'metodoPago'
-                                                ? 'border-blue-500 text-blue-600'
-                                                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                                        }`}
+                                        className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${activeTab === 'metodoPago'
+                                            ? 'border-blue-500 text-blue-600'
+                                            : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                                            }`}
                                     >
                                         <div className="flex items-center space-x-2">
                                             <CreditCard className="h-4 w-4" />
@@ -584,7 +709,7 @@ export const EgresosForm = ({ onBack, onSuccess }) => {
                                 </nav>
                             </div>
                         </div>
-                        
+
                         {/* 1. Formulario de Egreso */}
                         {activeTab === 'egreso' && (
                             <div className="space-y-6">
@@ -668,7 +793,7 @@ export const EgresosForm = ({ onBack, onSuccess }) => {
                                         </select>
                                     </div>
                                 </div>
-                                
+
                                 {/* --- SECCIÓN CONDICIONAL PARA CHEQUES (VALIDACIÓN DINÁMICA) --- */}
                                 {esMetodoCheque(metodoPagoSeleccionado) && ( // <-- VALIDACIÓN CLAVE AQUÍ
                                     <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 shadow-inner">
@@ -676,7 +801,7 @@ export const EgresosForm = ({ onBack, onSuccess }) => {
                                             <ClipboardCheck className="h-5 w-5 mr-2 text-blue-600" />
                                             Vincular Cheques
                                         </h3>
-                                        
+
                                         {isLoadingCheques ? (
                                             <div className="text-center py-4">
                                                 <svg className="animate-spin h-6 w-6 text-blue-500 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -690,13 +815,12 @@ export const EgresosForm = ({ onBack, onSuccess }) => {
                                         ) : (
                                             <div className="space-y-2 max-h-48 overflow-y-auto pr-2">
                                                 {chequesDisponibles.map((cheque) => (
-                                                    <div 
-                                                        key={cheque.id} 
-                                                        className={`flex items-center justify-between p-3 rounded-lg cursor-pointer transition-colors ${
-                                                            chequesSeleccionados.includes(cheque.id.toString())
-                                                                ? 'bg-blue-100 border-l-4 border-blue-500'
-                                                                : 'bg-white hover:bg-gray-100 border border-gray-200'
-                                                        }`}
+                                                    <div
+                                                        key={cheque.id}
+                                                        className={`flex items-center justify-between p-3 rounded-lg cursor-pointer transition-colors ${chequesSeleccionados.includes(cheque.id.toString())
+                                                            ? 'bg-blue-100 border-l-4 border-blue-500'
+                                                            : 'bg-white hover:bg-gray-100 border border-gray-200'
+                                                            }`}
                                                         onClick={() => handleChequeSelection(cheque.id)}
                                                     >
                                                         <div className="flex items-center space-x-3">
@@ -721,7 +845,7 @@ export const EgresosForm = ({ onBack, onSuccess }) => {
                                                 ))}
                                             </div>
                                         )}
-                                        
+
                                         {chequesDisponibles.length > 0 && (
                                             <div className="mt-3 pt-3 border-t border-gray-200 flex justify-between items-center">
                                                 <span className="text-sm font-semibold text-gray-700">Total Cheques Seleccionados:</span>
@@ -808,9 +932,8 @@ export const EgresosForm = ({ onBack, onSuccess }) => {
                                     <button
                                         type="submit"
                                         onClick={handleSubmitEgreso}
-                                        className={`w-full flex items-center justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white transition-colors ${
-                                            isLoadingEgreso ? 'bg-blue-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500'
-                                        }`}
+                                        className={`w-full flex items-center justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white transition-colors ${isLoadingEgreso ? 'bg-blue-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500'
+                                            }`}
                                         disabled={isLoadingEgreso}
                                     >
                                         {isLoadingEgreso ? (
@@ -832,10 +955,25 @@ export const EgresosForm = ({ onBack, onSuccess }) => {
                             </div>
                         )}
                         {/* ... (el resto del código de formularios y tablas es el mismo) ... */}
-                        
+
                         {/* 2. Formulario de Tipo de Egreso */}
                         {activeTab === 'tipoEgreso' && (
                             <div className="space-y-6">
+                                <h2 className="text-xl font-semibold text-gray-800">
+                                    {isEditing ? `Modificar Tipo: ${tipoEgresoAEditar?.nombre}` : 'Nuevo Tipo de Egreso'}
+                                </h2>
+
+                                {/* Botón Cancelar Edición Condicional */}
+                                {isEditing && (
+                                    <button
+                                        type="button"
+                                        onClick={handleCancelEdit}
+                                        className="flex items-center text-sm text-red-600 hover:text-red-800 transition-colors"
+                                    >
+                                        <ArrowLeft className="h-4 w-4 mr-1" />
+                                        Cancelar Edición
+                                    </button>
+                                )}
                                 {/* Campo Nombre del Tipo de Egreso */}
                                 <div>
                                     <label htmlFor="nombreTipoEgreso" className="block text-sm font-medium text-gray-700 mb-2">
@@ -892,9 +1030,8 @@ export const EgresosForm = ({ onBack, onSuccess }) => {
                                     <button
                                         type="submit"
                                         onClick={handleSubmitTipoEgreso}
-                                        className={`w-full flex items-center justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white transition-colors ${
-                                            isLoadingTipoEgreso ? 'bg-blue-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500'
-                                        }`}
+                                        className={`w-full flex items-center justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white transition-colors ${isLoadingTipoEgreso ? 'bg-blue-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500'
+                                            }`}
                                         disabled={isLoadingTipoEgreso}
                                     >
                                         {isLoadingTipoEgreso ? (
@@ -908,14 +1045,14 @@ export const EgresosForm = ({ onBack, onSuccess }) => {
                                         ) : (
                                             <>
                                                 <Save className="h-5 w-5 mr-2" />
-                                                Guardar Tipo de Egreso
+                                                {isEditing ? 'Guardar Cambios' : 'Guardar Tipo de Egreso'}
                                             </>
                                         )}
                                     </button>
                                 </div>
                             </div>
                         )}
-                        
+
                         {/* 3. Formulario de Método de Pago */}
                         {activeTab === 'metodoPago' && (
                             <div className="space-y-6">
@@ -945,9 +1082,8 @@ export const EgresosForm = ({ onBack, onSuccess }) => {
                                     <button
                                         type="submit"
                                         onClick={handleSubmitMetodoPago}
-                                        className={`w-full flex items-center justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white transition-colors ${
-                                            isLoadingMetodoPago ? 'bg-blue-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500'
-                                        }`}
+                                        className={`w-full flex items-center justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white transition-colors ${isLoadingMetodoPago ? 'bg-blue-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500'
+                                            }`}
                                         disabled={isLoadingMetodoPago}
                                     >
                                         {isLoadingMetodoPago ? (
@@ -1049,7 +1185,7 @@ export const EgresosForm = ({ onBack, onSuccess }) => {
                                 )}
                             </div>
                         )}
-                        
+
                         {/* Tabla de Últimos Tipos de Egreso */}
                         {activeTab === 'tipoEgreso' && (
                             <div className="bg-white rounded-xl shadow-md p-6">
@@ -1083,6 +1219,9 @@ export const EgresosForm = ({ onBack, onSuccess }) => {
                                                             <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                                                 Prioridad
                                                             </th>
+                                                            <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                                Acciones
+                                                            </th>
                                                         </tr>
                                                     </thead>
                                                     <tbody className="bg-white divide-y divide-gray-200">
@@ -1090,6 +1229,26 @@ export const EgresosForm = ({ onBack, onSuccess }) => {
                                                             <tr key={tipo.id} className="hover:bg-gray-50 transition-colors">
                                                                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{tipo.nombre}</td>
                                                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{tipo.prioridad?.nombre}</td>
+                                                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-center">
+                                                                    <div className="flex items-center justify-center space-x-2">
+                                                                        {/* Botón Modificar/Editar */}
+                                                                        <button
+                                                                            onClick={() => handleEditTipoEgreso(tipo)}
+                                                                            className="text-blue-600 hover:text-blue-900 p-1 rounded-md hover:bg-blue-100 transition-colors"
+                                                                            title="Modificar Tipo de Egreso"
+                                                                        >
+                                                                            <Pencil className="h-4 w-4" />
+                                                                        </button>
+                                                                        {/* Botón Eliminar */}
+                                                                        <button
+                                                                            onClick={() => handleSafeDeleteTipoEgreso(tipo.id)}
+                                                                            className="text-red-600 hover:text-red-900 p-1 rounded-md hover:bg-red-100 transition-colors"
+                                                                            title="Eliminar Tipo de Egreso"
+                                                                        >
+                                                                            <Trash2 className="h-4 w-4" />
+                                                                        </button>
+                                                                    </div>
+                                                                </td>
                                                             </tr>
                                                         ))}
                                                     </tbody>
@@ -1117,7 +1276,7 @@ export const EgresosForm = ({ onBack, onSuccess }) => {
                                 )}
                             </div>
                         )}
-                        
+
                         {/* Tabla de Últimos Métodos de Pago */}
                         {activeTab === 'metodoPago' && (
                             <div className="bg-white rounded-xl shadow-md p-6">
@@ -1184,14 +1343,14 @@ export const EgresosForm = ({ onBack, onSuccess }) => {
                     </div>
                 </div>
             </div>
-        <CrearRegistroModal 
+            <CrearRegistroModal
                 isOpen={mostrarModalRegistro}
                 onClose={() => { setMostrarModalRegistro(false); setError(''); }} // Limpiar error al cerrar
                 onCrearRegistro={handleCrearRegistroDelDia}
                 isCreating={isCreatingRegistro}
                 error={error}
             />
-        
+
         </div>
     );
 };
