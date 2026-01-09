@@ -131,7 +131,6 @@ export const Dashboard = () => {
   const userPermissions = useMemo(() => {
     // Retorna un array vacío si usuario o rol no existen
     if (!usuario?.rol) return [];
-    console.log(usuario.rol);
     const permissionsArray = usuario.rol.split(',').map(p => p.trim().toUpperCase());
     return permissionsArray;
   }, [usuario]);
