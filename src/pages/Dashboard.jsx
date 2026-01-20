@@ -126,7 +126,7 @@ export const Dashboard = () => {
 
   // Hook personalizado para obtener el usuario
   const { usuario } = useUsuario();
-  
+
   // 1. Array de Permisos del Usuario
   const userPermissions = useMemo(() => {
     // Retorna un array vacío si usuario o rol no existen
@@ -146,18 +146,18 @@ export const Dashboard = () => {
 
   // 2. LÓGICA DE FILTRADO
   const filteredSections = dashboardSections.filter(section => {
-    
+
     // Verifica si la sección tiene el array de permisos definido. Si no, la ocultamos.
     if (!section.requiredPermissions || section.requiredPermissions.length === 0) {
-        console.log(`[${section.id}]: ERROR - requiredPermissions no definido. Resultado: ❌ OCULTAR`);
-        return false; 
+      console.log(`[${section.id}]: ERROR - requiredPermissions no definido. Resultado: ❌ OCULTAR`);
+      return false;
     }
 
     // Usamos .some() para ver si AL MENOS UNO de los permisos requeridos 
     // está incluido en el array de permisos del usuario (userPermissions).
-    const hasPermission = section.requiredPermissions.some(requiredPerm => 
-        userPermissions.includes(requiredPerm)
-    );    
+    const hasPermission = section.requiredPermissions.some(requiredPerm =>
+      userPermissions.includes(requiredPerm)
+    );
     return hasPermission;
   });
 
@@ -168,7 +168,18 @@ export const Dashboard = () => {
         <div className="mb-8">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
+              <h1 className="text-3xl font-bold text-blue-500">Dashboard</h1>
+            </div>
+            <div>
+              {/* Verificamos si el usuario tiene el rol de administrador */}
+              {userPermissions.includes('ROLE_ADMIN') && (
+                <button
+                  className="border-2 rounded-md px-4 py-2 text-blue-500 font-bold hover:bg-blue-500 hover:text-gray-100"
+                  onClick={() => navigate('/admin-dashboard')}
+                >
+                  Reportes
+                </button>
+              )}
             </div>
           </div>
         </div>

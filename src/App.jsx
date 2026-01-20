@@ -35,7 +35,9 @@ function App() {
   return (
     <>
       <AuthProvider>
+        <div className="flex flex-col min-h-screen">
         <Header />
+        <main className="flex-grow">
         <Routes>
           <Route path="/" element={<LoginPage />} />
           <Route path="/login" element={<LoginPage />} />
@@ -225,7 +227,8 @@ function App() {
             }
           />
         </Routes>
-        <Footer />
+        </main>
+        </div>
       </AuthProvider>
     </>
   );
