@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'; // Agregué useCallback
+import { useState, useEffect, useCallback, useMemo } from 'react'; // Agregué useCallback
 import {
     DollarSign, FileText, User, Save, ArrowLeft, AlertCircle, CheckCircle,
     Plus, Eye, EyeOff, ListPlus, TrendingDown, Star, CreditCard, Banknote, ClipboardCheck, Pencil, Trash2
@@ -13,6 +13,16 @@ import { CrearRegistroModal } from '../components/CrearRegistroModal';
 const EPSILON = 0.000001;
 
 export const EgresosForm = ({ onBack, onSuccess }) => {
+    const TIPO_MAP = {
+        EMITIDO: { label: 'Propio', color: 'text-blue-600 bg-blue-50' },
+        RECIBIDO: { label: 'Tercero', color: 'text-purple-600 bg-purple-50' }
+    };
+
+    const CAT_MAP = {
+        FISICO: { label: 'Físico', icon: '📄' },
+        ELECTRONICO: { label: 'E-Cheq', icon: '💻' }
+    };
+
     // Estados del formulario de Tipo de Egreso
     const [nombreTipoEgreso, setNombreTipoEgreso] = useState('');
     const [prioridadSeleccionada, setPrioridadSeleccionada] = useState('');
@@ -23,6 +33,7 @@ export const EgresosForm = ({ onBack, onSuccess }) => {
     const [tipoEgresoSeleccionado, setTipoEgresoSeleccionado] = useState('');
     const [registroFinancieroDiario, setRegistroFinancieroDiario] = useState('');
     const [metodoPagoSeleccionado, setMetodoPagoSeleccionado] = useState('');
+    const [busquedaCheque, setBusquedaCheque] = useState('');
 
     // Estados del formulario de Método de Pago
     const [nombreMetodoPago, setNombreMetodoPago] = useState('');
@@ -201,6 +212,13 @@ export const EgresosForm = ({ onBack, onSuccess }) => {
         }
     };
     // ---------------------------------------------------
+
+    // Filtramos la lista original basándonos en el número de cheque
+    const chequesFiltrados = useMemo(() => {
+        return chequesDisponibles.filter(cheque =>
+            cheque.numeroCheque?.toString().toLowerCase().includes(busquedaCheque.toLowerCase())
+        );
+    }, [chequesDisponibles, busquedaCheque]);
 
     // Cargar datos al iniciar
     useEffect(() => {
@@ -794,13 +812,29 @@ export const EgresosForm = ({ onBack, onSuccess }) => {
                                     </div>
                                 </div>
 
-                                {/* --- SECCIÓN CONDICIONAL PARA CHEQUES (VALIDACIÓN DINÁMICA) --- */}
-                                {esMetodoCheque(metodoPagoSeleccionado) && ( // <-- VALIDACIÓN CLAVE AQUÍ
+                                {/* --- SECCIÓN CONDICIONAL PARA CHEQUES --- */}
+                                {esMetodoCheque(metodoPagoSeleccionado) && (
                                     <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 shadow-inner">
                                         <h3 className="flex items-center text-lg font-semibold text-gray-800 mb-3">
                                             <ClipboardCheck className="h-5 w-5 mr-2 text-blue-600" />
                                             Vincular Cheques
                                         </h3>
+
+                                        {/* --- NUEVO BUSCADOR --- */}
+                                        {!isLoadingCheques && chequesDisponibles.length > 0 && (
+                                            <div className="mb-4 relative">
+                                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                                    <ListPlus className="h-4 w-4 text-gray-400" />
+                                                </div>
+                                                <input
+                                                    type="text"
+                                                    placeholder="Buscar por número de cheque..."
+                                                    className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white text-sm placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                                                    value={busquedaCheque}
+                                                    onChange={(e) => setBusquedaCheque(e.target.value)}
+                                                />
+                                            </div>
+                                        )}
 
                                         {isLoadingCheques ? (
                                             <div className="text-center py-4">
@@ -814,41 +848,61 @@ export const EgresosForm = ({ onBack, onSuccess }) => {
                                             <p className="text-center text-sm text-gray-500 py-4">No hay cheques pendientes disponibles para vincular.</p>
                                         ) : (
                                             <div className="space-y-2 max-h-48 overflow-y-auto pr-2">
-                                                {chequesDisponibles.map((cheque) => (
-                                                    <div
-                                                        key={cheque.id}
-                                                        className={`flex items-center justify-between p-3 rounded-lg cursor-pointer transition-colors ${chequesSeleccionados.includes(cheque.id.toString())
-                                                            ? 'bg-blue-100 border-l-4 border-blue-500'
-                                                            : 'bg-white hover:bg-gray-100 border border-gray-200'
-                                                            }`}
-                                                        onClick={() => handleChequeSelection(cheque.id)}
-                                                    >
-                                                        <div className="flex items-center space-x-3">
-                                                            <input
-                                                                id={`cheque-${cheque.id}`}
-                                                                type="checkbox"
-                                                                checked={chequesSeleccionados.includes(cheque.id.toString())}
-                                                                onChange={() => handleChequeSelection(cheque.id)}
-                                                                className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                                                            />
-                                                            <label htmlFor={`cheque-${cheque.id}`} className="text-sm font-medium text-gray-900 flex-1">
-                                                                Cheque N° **{cheque.numeroCheque || 'N/A'}**
-                                                                <span className="block text-xs text-gray-500">
-                                                                    Vence: {formatearFecha(cheque.fechaCobro || '')}
+                                                {/* IMPORTANTE: Ahora mapeamos sobre 'chequesFiltrados' */}
+                                                {chequesFiltrados.length > 0 ? (
+                                                    chequesFiltrados.map((cheque) => (
+                                                        <div
+                                                            key={cheque.id}
+                                                            className={`flex items-center justify-between p-3 rounded-lg cursor-pointer transition-colors ${chequesSeleccionados.includes(cheque.id.toString())
+                                                                    ? 'bg-blue-100 border-l-4 border-blue-500'
+                                                                    : 'bg-white hover:bg-gray-100 border border-gray-200'
+                                                                }`}
+                                                            onClick={() => handleChequeSelection(cheque.id)}
+                                                        >
+                                                            <div className="flex items-center space-x-3 flex-1">
+                                                                <input
+                                                                    id={`cheque-${cheque.id}`}
+                                                                    type="checkbox"
+                                                                    checked={chequesSeleccionados.includes(cheque.id.toString())}
+                                                                    readOnly // Se maneja con el onClick del contenedor
+                                                                    className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                                                />
+                                                                <div className="flex-1">
+                                                                    <div className="flex items-center gap-2 flex-wrap">
+                                                                        <label htmlFor={`cheque-${cheque.id}`} className="text-sm font-bold text-gray-900 cursor-pointer">
+                                                                            N° {cheque.numeroCheque || 'N/A'}
+                                                                        </label>
+                                                                        {/* Badges de Información Nueva */}
+                                                                        <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold uppercase ${cheque.tipoCheque === 'EMITIDO' ? 'bg-blue-200 text-blue-700' : 'bg-purple-200 text-purple-700'
+                                                                            }`}>
+                                                                            {cheque.tipoCheque === 'EMITIDO' ? 'Propio' : 'Tercero'}
+                                                                        </span>
+                                                                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-200 text-gray-700 font-bold uppercase">
+                                                                            {cheque.categoriaCheque === 'ELECTRONICO' ? '💻 E-Cheq' : '📄 Físico'}
+                                                                        </span>
+                                                                    </div>
+                                                                    <span className="block text-xs text-gray-500 mt-0.5">
+                                                                        Vence: {formatearFecha(cheque.fechaCobro || '')}
+                                                                        {cheque.bancoEmisor && ` • ${cheque.bancoEmisor}`}
+                                                                    </span>
+                                                                </div>
+                                                            </div>
+                                                            <div className="text-right ml-2">
+                                                                <span className="text-sm font-bold text-green-700 block">
+                                                                    {formatearMoneda(cheque.monto)}
                                                                 </span>
-                                                            </label>
+                                                            </div>
                                                         </div>
-                                                        <span className="text-sm font-bold text-green-700 flex-shrink-0">
-                                                            {formatearMoneda(cheque.monto)}
-                                                        </span>
-                                                    </div>
-                                                ))}
+                                                    ))
+                                                ) : (
+                                                    <p className="text-center text-xs text-gray-400 py-2">No se encontraron cheques con ese número.</p>
+                                                )}
                                             </div>
                                         )}
 
                                         {chequesDisponibles.length > 0 && (
                                             <div className="mt-3 pt-3 border-t border-gray-200 flex justify-between items-center">
-                                                <span className="text-sm font-semibold text-gray-700">Total Cheques Seleccionados:</span>
+                                                <span className="text-sm font-semibold text-gray-700">Total Seleccionado:</span>
                                                 <span className="text-lg font-bold text-blue-600">
                                                     {formatearMoneda(
                                                         chequesSeleccionados.reduce((sum, id) => {
@@ -861,7 +915,6 @@ export const EgresosForm = ({ onBack, onSuccess }) => {
                                         )}
                                     </div>
                                 )}
-                                {/* --- FIN SECCIÓN CONDICIONAL PARA CHEQUES --- */}
 
                                 {/* Campo Registro Financiero Diario */}
                                 <div>
