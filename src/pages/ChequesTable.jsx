@@ -4,6 +4,7 @@ import {
     CreditCard, Loader2, AlertTriangle, Eye, Eraser, ChevronUp, ChevronDown, Search, Calendar
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useFechaFormateador } from '../hooks/formatearFecha'
 
 const apiUrl = import.meta.env.VITE_API_URL;
 
@@ -30,6 +31,8 @@ export const ChequesTable = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
+    const { formatearFecha, parsearFechaLocal } = useFechaFormateador();
+
     // Filtros BACKEND
     const [tipoSeleccionado, setTipoSeleccionado] = useState(TIPO_CHEQUE.RECIBIDO);
     const [filtroEstado, setFiltroEstado] = useState('PENDIENTE');
@@ -40,7 +43,7 @@ export const ChequesTable = () => {
     const [fechaDesde, setFechaDesde] = useState('');
     const [fechaHasta, setFechaHasta] = useState('');
 
-    const [sortConfig, setSortConfig] = useState({ key: 'fechaCobro', direction: 'asc' });
+    const [sortConfig, setSortConfig] = useState({ key: 'id', direction: 'asc' });
 
     useEffect(() => {
         const fetchCheques = async () => {
@@ -59,16 +62,20 @@ export const ChequesTable = () => {
         fetchCheques();
     }, [tipoSeleccionado, filtroEstado]);
 
+    // Asumiendo que obtienes la función del hook al inicio del componente:
+    // const { parsearFechaLocal } = useFechaFormateador();
+
     const chequesFiltrados = useMemo(() => {
         return cheques.filter(cheque => {
             const matchNumero = cheque.numeroCheque?.toString().includes(busquedaNumero);
             const emisor = (cheque.terceroNombre || cheque.bancoTerceros?.nombre || cheque.cuentaBancaria?.nombre || '').toLowerCase();
             const matchEmisor = emisor.includes(busquedaEmisor.toLowerCase());
 
-            const fechaCheque = cheque.fechaCobro ? new Date(cheque.fechaCobro) : null;
+            // CORRECCIÓN: Filtrado con parseo local
+            const fechaCheque = parsearFechaLocal(cheque.fechaCobro);
             let matchFecha = true;
-            if (fechaDesde && fechaCheque) matchFecha = matchFecha && fechaCheque >= new Date(fechaDesde);
-            if (fechaHasta && fechaCheque) matchFecha = matchFecha && fechaCheque <= new Date(fechaHasta);
+            if (fechaDesde && fechaCheque) matchFecha = matchFecha && fechaCheque >= parsearFechaLocal(fechaDesde);
+            if (fechaHasta && fechaCheque) matchFecha = matchFecha && fechaCheque <= parsearFechaLocal(fechaHasta);
 
             return matchNumero && matchEmisor && matchFecha;
         });
@@ -80,10 +87,14 @@ export const ChequesTable = () => {
             sortableItems.sort((a, b) => {
                 let aVal = a[sortConfig.key];
                 let bVal = b[sortConfig.key];
+
+                // Si la columna es de fecha, usamos el parseador local para comparar tiempos
                 if (sortConfig.key.includes('fecha')) {
-                    aVal = aVal ? new Date(aVal) : 0;
-                    bVal = bVal ? new Date(bVal) : 0;
+                    aVal = parsearFechaLocal(aVal)?.getTime() || 0;
+                    bVal = parsearFechaLocal(bVal)?.getTime() || 0;
                 }
+
+                // Para ID u otras columnas, comparación estándar
                 if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
                 if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
                 return 0;
@@ -93,7 +104,10 @@ export const ChequesTable = () => {
     }, [chequesFiltrados, sortConfig]);
 
     const handleSort = (key) => {
-        setSortConfig(prev => ({ key, direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc' }));
+        setSortConfig(prev => ({
+            key,
+            direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc'
+        }));
     };
 
     const isRecibido = tipoSeleccionado === TIPO_CHEQUE.RECIBIDO;
@@ -179,12 +193,12 @@ export const ChequesTable = () => {
 
                                     {/* Fecha de Emisión/Recepción */}
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                        {cheque.fechaEmision ? new Date(cheque.fechaEmision).toLocaleDateString('es-AR') : '—'}
+                                        {formatearFecha(cheque.fechaEmision)}
                                     </td>
 
                                     {/* Fecha de Vencimiento */}
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 font-semibold">
-                                        {new Date(cheque.fechaCobro).toLocaleDateString('es-AR')}
+                                        {formatearFecha(cheque.fechaCobro)}
                                     </td>
 
                                     {/* COLUMNA DINÁMICA: Beneficiario o Emisor */}
