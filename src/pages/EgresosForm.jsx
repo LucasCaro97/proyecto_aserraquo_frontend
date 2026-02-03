@@ -171,7 +171,10 @@ export const EgresosForm = ({ onBack, onSuccess }) => {
         setIsLoadingTiposEgreso(true);
         try {
             const response = await axios.get(`${apiUrl}/tipo-egreso/activos`);
-            setTiposEgresoDisponibles(response.data);
+            const dataOrdenada = response.data.sort((a, b) =>
+                a.nombre.localeCompare(b.nombre)
+            );
+            setTiposEgresoDisponibles(dataOrdenada);
         } catch (error) {
             console.error('Error al cargar tipos de egreso disponibles:', error);
         } finally {
@@ -854,8 +857,8 @@ export const EgresosForm = ({ onBack, onSuccess }) => {
                                                         <div
                                                             key={cheque.id}
                                                             className={`flex items-center justify-between p-3 rounded-lg cursor-pointer transition-colors ${chequesSeleccionados.includes(cheque.id.toString())
-                                                                    ? 'bg-blue-100 border-l-4 border-blue-500'
-                                                                    : 'bg-white hover:bg-gray-100 border border-gray-200'
+                                                                ? 'bg-blue-100 border-l-4 border-blue-500'
+                                                                : 'bg-white hover:bg-gray-100 border border-gray-200'
                                                                 }`}
                                                             onClick={() => handleChequeSelection(cheque.id)}
                                                         >
