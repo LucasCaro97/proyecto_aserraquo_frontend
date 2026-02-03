@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Plus,
   Eye,
@@ -15,10 +15,25 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { useUsuario } from '../hooks/useUsuario';
 import { useMemo } from 'react';
+import axios from 'axios';
+import { obtenerFechaActual } from '../hooks/obtenerFechaActual';
+import { DashboardCard } from '../components/DashboardCard.jsx';
+
 
 export const Dashboard = () => {
   const [activeSection, setActiveSection] = useState(null);
   const navigate = useNavigate();
+
+  const apiUrl = import.meta.env.VITE_API_URL;
+  const fechaActual = obtenerFechaActual();
+
+  const [totales, setTotales] = useState({
+    ingresos: 0,
+    egresos: 0,
+    totalIngresosMensual: 0,
+    totalEgresosMensual: 0,
+    // aquí se irán sumando dinámicamente
+  });
 
   // Configuración de las secciones del dashboard
   const dashboardSections = [
@@ -123,6 +138,33 @@ export const Dashboard = () => {
     }
   ];
 
+  //UseEffect para obtener datos iniciales de totales
+  useEffect(() => {
+    //Obtengo el monto total de ingresos del día actual
+    const fetchTotales = async () => {
+      try {
+        //Definimos las promesas para los totales
+        const [resIngresos, resEgresos, resIngresosMensual, resEgresosMensual] = await Promise.all([
+          axios.get(`${apiUrl}/ingreso/obtenerAcumulado/${fechaActual}`),
+          axios.get(`${apiUrl}/egreso/obtenerAcumulado/${fechaActual}`),
+          axios.get(`${apiUrl}/ingreso/obtenerAcumuladoMensual/${fechaActual}`),
+          axios.get(`${apiUrl}/egreso/obtenerAcumuladoMensual/${fechaActual}`),
+        ]);
+
+        setTotales(prev => ({
+          ...prev,
+          ingresos: resIngresos.data,
+          egresos: resEgresos.data,
+          totalIngresosMensual: resIngresosMensual.data,
+          totalEgresosMensual: resEgresosMensual.data,
+        }));
+      } catch (err) {
+        console.error("Error fetching endpoint:", err);
+      }
+    };
+
+    fetchTotales();
+  }, []);
 
   // Hook personalizado para obtener el usuario
   const { usuario } = useUsuario();
@@ -187,56 +229,13 @@ export const Dashboard = () => {
         {/* Grid de Secciones */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-6xl mx-auto">
           {filteredSections.map((section) => (
-            <div
+            <DashboardCard
               key={section.id}
-              className="bg-white rounded-xl shadow-md hover:shadow-lg transition-all duration-300 overflow-hidden w-full max-w-sm mx-auto"
-            >
-              {/* Header de la Card */}
-              <div className={`${section.color} text-white p-6`}>
-                <div className="flex items-center justify-center mb-4">
-                  {section.icon}
-                </div>
-                <h3 className="text-lg font-semibold text-center">
-                  {section.title}
-                </h3>
-              </div>
-
-              {/* Contenido de la Card */}
-              <div className="p-6">
-                <p className="text-gray-600 text-sm mb-6 text-center">
-                  {section.description}
-                </p>
-
-                {/* Botones de Acción */}
-                <div className="space-y-3">
-                  <button
-                    onClick={() => handleAddNew(section.urlForm)}
-                    className={`w-full ${section.color} ${section.hoverColor} text-white font-medium py-3 px-4 rounded-lg transition-colors duration-200 flex items-center justify-center space-x-2`}
-                  >
-                    <Plus className="h-4 w-4" />
-                    <span>Dar de Alta</span>
-                  </button>
-
-                  <button
-                    onClick={() => handleViewRecords(section.urlTable)}
-                    className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-3 px-4 rounded-lg transition-colors duration-200 flex items-center justify-center space-x-2"
-                  >
-                    <Eye className="h-4 w-4" />
-                    <span>Ver Registros</span>
-                  </button>
-                </div>
-
-                {/* Información adicional (placeholder para futuras totalizaciones) */}
-                <div className="mt-4 pt-4 border-t border-gray-100">
-                  <div className="text-center">
-                    <span className="text-2xl font-bold text-gray-400">--</span>
-                    <p className="text-xs text-gray-400 mt-1">
-                      Total (próximamente)
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
+              section={section}
+              total={totales[section.id]}
+              onAddNew={handleAddNew}
+              onViewRecords={handleViewRecords}
+            />
           ))}
         </div>
 
@@ -247,16 +246,16 @@ export const Dashboard = () => {
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             <div className="text-center p-4 bg-gray-50 rounded-lg">
-              <div className="text-2xl font-bold text-gray-400 mb-2">--</div>
-              <div className="text-sm text-gray-600">Total Ingresos</div>
+              <div className="text-2xl font-bold text-gray-400 mb-2">$ {totales.totalIngresosMensual !== undefined ? totales.totalIngresosMensual.toLocaleString('es-AR', { minimumFractionDigits: 2 }) : "--"}</div>
+              <div className="text-sm text-gray-600">Total Ingresos / Mes</div>
             </div>
             <div className="text-center p-4 bg-gray-50 rounded-lg">
-              <div className="text-2xl font-bold text-gray-400 mb-2">--</div>
-              <div className="text-sm text-gray-600">Total Egresos</div>
+              <div className="text-2xl font-bold text-gray-400 mb-2">$ {totales.totalEgresosMensual !== undefined ? totales.totalEgresosMensual.toLocaleString('es-AR', { minimumFractionDigits: 2 }) : "--"}</div>
+              <div className="text-sm text-gray-600">Total Egresos / Mes</div>
             </div>
             <div className="text-center p-4 bg-gray-50 rounded-lg">
-              <div className="text-2xl font-bold text-gray-400 mb-2">--</div>
-              <div className="text-sm text-gray-600">Balance</div>
+              <div className="text-2xl font-bold text-gray-400 mb-2">$ {totales.totalIngresosMensual !== undefined && totales.totalEgresosMensual !== undefined ? (totales.totalIngresosMensual - totales.totalEgresosMensual).toLocaleString('es-AR', { minimumFractionDigits: 2 }) : "--"}</div>
+              <div className="text-sm text-gray-600">Balance / Mes</div>
             </div>
             <div className="text-center p-4 bg-gray-50 rounded-lg">
               <div className="text-2xl font-bold text-gray-400 mb-2">--</div>
@@ -265,6 +264,6 @@ export const Dashboard = () => {
           </div>
         </div>
       </div>
-    </div>
+    </div >
   );
 };
