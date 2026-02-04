@@ -16,12 +16,13 @@ import {
     ArrowDown,
     ArrowUpDown,
     CornerUpRight, // Icono representativo para egresos
-    Wallet // Nuevo Icono para Cheques
+    Wallet, // Nuevo Icono para Cheques
 } from 'lucide-react';
 import { useUsuario } from '../hooks/useUsuario';
 import { obtenerDiaDeLaSemana } from '../hooks/obtenerDiaDeLaSemana';
 import { obtenerFechaActual } from '../hooks/obtenerFechaActual';
 import axios from 'axios';
+import Swal from 'sweetalert2';
 
 export const EgresosTable = () => {
     // Estados principales
@@ -162,6 +163,54 @@ export const EgresosTable = () => {
         );
     };
 
+    const handleDelete = async (id) => {
+        const { value: motivo } = await Swal.fire({
+            title: '¿Confirmar eliminación?',
+            text: "Por favor, indica el motivo:",
+            icon: 'warning',
+            input: 'text',
+            inputPlaceholder: 'Escribe el motivo aquí...',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#3085d6',
+            confirmButtonText: 'Sí, eliminar',
+            cancelButtonText: 'Cancelar',
+            inputValidator: (value) => {
+                if (!value) {
+                    return '¡Es obligatorio indicar un motivo!';
+                }
+            }
+        });
+
+        // Si el usuario confirma y escribe un motivo
+        if (motivo) {
+            try {
+                // Enviamos el motivo en el cuerpo (body) de la petición
+                // Nota: Verifica si tu backend espera el motivo en el body o como Query Param
+                const response = await axios.delete(`${apiUrl}/egreso/safeDelete/${id}`, {
+                    data: motivo,
+                });
+
+                if (response.status === 200) {
+                    // Actualizamos la lista localmente
+                    setTodosLosEgresos(prev => prev.filter(egreso => egreso.id !== id));
+
+                    // Alerta de éxito elegante
+                    Swal.fire({
+                        title: '¡Eliminado!',
+                        text: 'El registro ha sido borrado con éxito.',
+                        icon: 'success',
+                        timer: 2000,
+                        showConfirmButton: false
+                    });
+                }
+            } catch (err) {
+                console.error("Error al eliminar:", err);
+                Swal.fire('Error', 'No se pudo eliminar el registro.', 'error');
+            }
+        }
+    };
+
     return (
         <div className="min-h-screen bg-gray-50 p-6">
             <div className="max-w-7xl mx-auto">
@@ -202,7 +251,7 @@ export const EgresosTable = () => {
                                 <input type="date" value={fechaFin} onChange={(e) => setFechaFin(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" />
                             </div>
                             <div className="flex space-x-2">
-                                <button 
+                                <button
                                     onClick={buscarPorRangoFechas}
                                     disabled={!fechaInicio || !fechaFin || isLoading}
                                     className={`flex-1 py-2 rounded-lg font-medium transition-colors ${!fechaInicio || !fechaFin ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-indigo-600 text-white hover:bg-indigo-700'}`}
@@ -275,7 +324,7 @@ export const EgresosTable = () => {
                                                 ) : 'N/A'}
                                             </td>
                                             <td className="px-6 py-4 text-sm text-gray-900">
-                                                <Trash2 className="h-4 w-4 text-red-600 hover:text-red-900 rounded-md hover:bg-red-100 transition-colors" />
+                                                <Trash2 onClick={() => handleDelete(egreso.id)} className="h-4 w-4 text-red-600 hover:text-red-900 rounded-md hover:bg-red-100 transition-colors" />
                                             </td>
                                         </tr>
                                     ))}

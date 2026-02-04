@@ -11,6 +11,7 @@ export const IngresoRollosPage = ({ onBack, onSuccess }) => {
     const [peso, setPeso] = useState('');
     const [registroFinancieroDiario, setRegistroFinancieroDiario] = useState('');
     const [tipoProductoSeleccionado, setTipoProductoSeleccionado] = useState('');
+    const [observacion, setObservacion] = useState('');
 
     // Estados del formulario de Tipo de Producto
     const [nombreTipoProducto, setNombreTipoProducto] = useState('');
@@ -116,7 +117,7 @@ export const IngresoRollosPage = ({ onBack, onSuccess }) => {
                 setSuccess('Registro del día actual creado exitosamente');
             }
             // Cerrar el modal después de crear con éxito
-            setMostrarModalRegistro(false); 
+            setMostrarModalRegistro(false);
         } catch (error) {
             setError(error.message || 'Error al crear el registro financiero.');
         } finally {
@@ -158,11 +159,12 @@ export const IngresoRollosPage = ({ onBack, onSuccess }) => {
                 peso: parseFloat(peso),
                 idRegistroDiario: parseInt(registroFinancieroDiario),
                 idUsuario: usuario.id,
-                idTipoProducto: parseInt(tipoProductoSeleccionado) // Nuevo campo
+                idTipoProducto: parseInt(tipoProductoSeleccionado),
+                observacion: observacion
             };
 
             const response = await axios.post(`${apiUrl}/rollos-ingresados`, nuevoRollo);
-            
+
             setSuccess('Rollo registrado exitosamente');
             // Limpiar formulario
             setPeso('');
@@ -290,11 +292,10 @@ export const IngresoRollosPage = ({ onBack, onSuccess }) => {
                                 <nav className="flex space-x-8">
                                     <button
                                         onClick={() => setActiveTab('rollo')}
-                                        className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
-                                            activeTab === 'rollo'
-                                                ? 'border-blue-500 text-blue-600'
-                                                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                                        }`}
+                                        className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${activeTab === 'rollo'
+                                            ? 'border-blue-500 text-blue-600'
+                                            : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                                            }`}
                                     >
                                         <div className="flex items-center space-x-2">
                                             <TrendingUp className="h-4 w-4" />
@@ -303,11 +304,10 @@ export const IngresoRollosPage = ({ onBack, onSuccess }) => {
                                     </button>
                                     <button
                                         onClick={() => setActiveTab('tipoProducto')}
-                                        className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
-                                            activeTab === 'tipoProducto'
-                                                ? 'border-blue-500 text-blue-600'
-                                                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                                        }`}
+                                        className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${activeTab === 'tipoProducto'
+                                            ? 'border-blue-500 text-blue-600'
+                                            : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                                            }`}
                                     >
                                         <div className="flex items-center space-x-2">
                                             <ListPlus className="h-4 w-4" />
@@ -373,6 +373,19 @@ export const IngresoRollosPage = ({ onBack, onSuccess }) => {
                                             )}
                                         </select>
                                     </div>
+                                </div>
+
+                                <div className="md:col-span-2">
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        Observación
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={observacion}
+                                        onChange={(e) => setObservacion(e.target.value)}
+                                        placeholder="Ej: Rollo con detalles de tintura, peso neto..."
+                                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                                    />
                                 </div>
 
 
@@ -489,9 +502,8 @@ export const IngresoRollosPage = ({ onBack, onSuccess }) => {
                                     <button
                                         type="submit"
                                         disabled={isLoadingTipoProducto}
-                                        className={`w-full flex items-center justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white transition-colors ${
-                                            isLoadingTipoProducto ? 'bg-blue-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500'
-                                        }`}
+                                        className={`w-full flex items-center justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white transition-colors ${isLoadingTipoProducto ? 'bg-blue-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500'
+                                            }`}
                                     >
                                         {isLoadingTipoProducto ? (
                                             <>
@@ -666,7 +678,7 @@ export const IngresoRollosPage = ({ onBack, onSuccess }) => {
                 </div>
             </div>
 
-            <CrearRegistroModal 
+            <CrearRegistroModal
                 isOpen={mostrarModalRegistro}
                 onClose={() => { setMostrarModalRegistro(false); setError(''); }} // Limpiar error al cerrar
                 onCrearRegistro={handleCrearRegistroDelDia}

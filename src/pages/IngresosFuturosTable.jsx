@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { 
-    Eye, 
-    EyeOff, 
-    Package, 
-    Truck, 
-    DollarSign, 
-    Calendar, 
-    User, 
-    FileText, 
+import {
+    Eye,
+    EyeOff,
+    Package,
+    Truck,
+    DollarSign,
+    Calendar,
+    User,
+    FileText,
     Search,
     Filter,
     Download,
@@ -16,11 +16,13 @@ import {
     CheckCircle,
     ArrowUp,
     ArrowDown,
-    ArrowUpDown
+    ArrowUpDown,
+    Trash2
 } from 'lucide-react';
 import { useUsuario } from '../hooks/useUsuario';
 import { obtenerDiaDeLaSemana } from '../hooks/obtenerDiaDeLaSemana';
 import axios from 'axios';
+import Swal from 'sweetalert2';
 
 export const IngresosFuturosTable = ({ onEdit, onView }) => {
     // Estados principales
@@ -57,7 +59,7 @@ export const IngresosFuturosTable = ({ onEdit, onView }) => {
 
         try {
             // Solo pedimos todos los datos al servidor sin filtros
-            const response = await axios.get(`${apiUrl}/ingreso-futuro`);
+            const response = await axios.get(`${apiUrl}/ingreso-futuro/first-load`);
             setTodosLosIngresos(response.data.data || response.data);
         } catch (error) {
             console.error('Error al cargar ingresos futuros:', error);
@@ -78,28 +80,28 @@ export const IngresosFuturosTable = ({ onEdit, onView }) => {
 
         // Aplicar filtro de fecha desde
         if (filtroFechaDesde) {
-            datosFiltrados = datosFiltrados.filter(ingreso => 
+            datosFiltrados = datosFiltrados.filter(ingreso =>
                 ingreso.registroFinancieroDiario.fecha >= filtroFechaDesde
             );
         }
 
         // Aplicar filtro de fecha hasta
         if (filtroFechaHasta) {
-            datosFiltrados = datosFiltrados.filter(ingreso => 
+            datosFiltrados = datosFiltrados.filter(ingreso =>
                 ingreso.registroFinancieroDiario.fecha <= filtroFechaHasta
             );
         }
 
         // Aplicar filtro de usuario
         if (filtroUsuario.trim()) {
-            datosFiltrados = datosFiltrados.filter(ingreso => 
+            datosFiltrados = datosFiltrados.filter(ingreso =>
                 ingreso.usuario?.nombre?.toLowerCase().includes(filtroUsuario.toLowerCase())
             );
         }
 
         // Aplicar filtro de observación
         if (busquedaObservacion.trim()) {
-            datosFiltrados = datosFiltrados.filter(ingreso => 
+            datosFiltrados = datosFiltrados.filter(ingreso =>
                 ingreso.observacion?.toLowerCase().includes(busquedaObservacion.toLowerCase())
             );
         }
@@ -110,7 +112,7 @@ export const IngresosFuturosTable = ({ onEdit, onView }) => {
     // Función para ordenar los datos en el cliente
     const datosOrdenados = useMemo(() => {
         const datosParaOrdenar = [...datosFilterdos];
-        
+
         return datosParaOrdenar.sort((a, b) => {
             let valorA, valorB;
 
@@ -184,9 +186,9 @@ export const IngresosFuturosTable = ({ onEdit, onView }) => {
         try {
             const datosParaExportar = datosOrdenados; // Usar datos filtrados y ordenados
 
-            const csvContent = "data:text/csv;charset=utf-8," + 
+            const csvContent = "data:text/csv;charset=utf-8," +
                 "Fecha,Día,Paquetes Despachados,Camiones Despachados,Ventas Totales,Usuario,Observación\n" +
-                datosParaExportar.map(ingreso => 
+                datosParaExportar.map(ingreso =>
                     `${formatearFecha(ingreso.registroFinancieroDiario.fecha)},` +
                     `${obtenerDiaDeLaSemana(ingreso.registroFinancieroDiario.fecha)},` +
                     `${ingreso.paquetesDespachados},` +
@@ -203,7 +205,7 @@ export const IngresosFuturosTable = ({ onEdit, onView }) => {
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
-            
+
             setSuccess('Datos exportados exitosamente');
             setTimeout(() => setSuccess(''), 3000);
         } catch (error) {
@@ -237,12 +239,57 @@ export const IngresosFuturosTable = ({ onEdit, onView }) => {
         if (ordenarPor !== campo) {
             return <ArrowUpDown className="h-4 w-4 text-gray-400" />;
         }
-        return tipoOrden === 'asc' 
+        return tipoOrden === 'asc'
             ? <ArrowUp className="h-4 w-4 text-blue-600" />
             : <ArrowDown className="h-4 w-4 text-blue-600" />;
     };
 
-return (
+    const handleDelete = async (id) => {
+        const { value: motivo } = await Swal.fire({
+            title: '¿Confirmar eliminación?',
+            text: "Por favor, indica el motivo de la eliminación de esta proyección:",
+            icon: 'warning',
+            input: 'text',
+            inputPlaceholder: 'Escribe el motivo aquí...',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            confirmButtonText: 'Sí, eliminar',
+            cancelButtonText: 'Cancelar',
+            inputValidator: (value) => {
+                if (!value) return '¡Es obligatorio indicar un motivo!';
+            }
+        });
+
+        if (motivo) {
+            try {
+                setIsLoading(true);
+                // Enviamos 'motivo' como string directo y configuramos el header como texto plano
+                const response = await axios.delete(`${apiUrl}/ingreso-futuro/safeDelete/${id}`, {
+                    data: motivo,
+                    headers: { 'Content-Type': 'text/plain' }
+                });
+
+                if (response.status === 200) {
+                    setTodosLosIngresos(prev => prev.filter(ingreso => ingreso.id !== id));
+
+                    Swal.fire({
+                        title: '¡Eliminado!',
+                        text: 'La proyección ha sido eliminada.',
+                        icon: 'success',
+                        timer: 2000,
+                        showConfirmButton: false
+                    });
+                }
+            } catch (err) {
+                console.error("Error al eliminar:", err);
+                Swal.fire('Error', 'No se pudo eliminar el registro.', 'error');
+            } finally {
+                setIsLoading(false);
+            }
+        }
+    };
+
+    return (
         <div className="min-h-screen bg-gray-50 p-6">
             <div className="max-w-7xl mx-auto">
                 {/* Header */}
@@ -355,8 +402,8 @@ return (
                     <div className="mb-6 bg-white rounded-xl shadow-md p-4">
                         <div className="flex items-center justify-between text-sm text-gray-600">
                             <span>
-                                Mostrando {totalRegistros} registros 
-                                {totalRegistros !== todosLosIngresos.length && 
+                                Mostrando {totalRegistros} registros
+                                {totalRegistros !== todosLosIngresos.length &&
                                     ` (filtrado de ${todosLosIngresos.length} totales)`
                                 }
                             </span>
@@ -407,7 +454,7 @@ return (
                             <Package className="h-12 w-12 mx-auto text-gray-300 mb-4" />
                             <h3 className="text-lg font-medium text-gray-900 mb-2">No hay registros</h3>
                             <p className="text-gray-500">
-                                {todosLosIngresos.length === 0 
+                                {todosLosIngresos.length === 0
                                     ? "No se encontraron ingresos futuros"
                                     : "No se encontraron ingresos futuros con los filtros aplicados"
                                 }
@@ -420,7 +467,10 @@ return (
                                 <table className="min-w-full divide-y divide-gray-200">
                                     <thead className="bg-gray-50">
                                         <tr>
-                                            <th 
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                Id
+                                            </th>
+                                            <th
                                                 className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                                                 onClick={() => handleOrdenar('fecha')}
                                             >
@@ -430,7 +480,7 @@ return (
                                                     {renderIconoOrden('fecha')}
                                                 </div>
                                             </th>
-                                            <th 
+                                            <th
                                                 className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                                                 onClick={() => handleOrdenar('paquetesDespachados')}
                                             >
@@ -440,7 +490,7 @@ return (
                                                     {renderIconoOrden('paquetesDespachados')}
                                                 </div>
                                             </th>
-                                            <th 
+                                            <th
                                                 className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                                                 onClick={() => handleOrdenar('camionesDespachados')}
                                             >
@@ -450,7 +500,7 @@ return (
                                                     {renderIconoOrden('camionesDespachados')}
                                                 </div>
                                             </th>
-                                            <th 
+                                            <th
                                                 className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                                                 onClick={() => handleOrdenar('ventasTotales')}
                                             >
@@ -460,7 +510,7 @@ return (
                                                     {renderIconoOrden('ventasTotales')}
                                                 </div>
                                             </th>
-                                            <th 
+                                            <th
                                                 className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                                                 onClick={() => handleOrdenar('usuario')}
                                             >
@@ -484,6 +534,12 @@ return (
                                     <tbody className="bg-white divide-y divide-gray-200">
                                         {datosPaginados.map((ingreso, index) => (
                                             <tr key={ingreso.id} className="hover:bg-gray-50 transition-colors">
+                                                <td className="px-6 py-4 text-sm ">
+                                                    <div className='flex items-center justify-center w-10 h-10 border-2 rounded-lg  border-gray-100 bg-gray-400'>
+                                                        {ingreso.id}
+                                                    </div>
+                                                </td>
+
                                                 <td className="px-6 py-4 whitespace-nowrap">
                                                     <div className="flex flex-col">
                                                         <div className="text-sm font-medium text-gray-900">
@@ -524,25 +580,15 @@ return (
                                                     </div>
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                                    <div className="flex items-center justify-end space-x-2">
-                                                        {onView && (
-                                                            <button
-                                                                onClick={() => onView(ingreso)}
-                                                                className="text-blue-600 hover:text-blue-900 p-1 rounded hover:bg-blue-50"
-                                                                title="Ver detalles"
-                                                            >
-                                                                <Eye className="h-4 w-4" />
-                                                            </button>
-                                                        )}
-                                                        {onEdit && (
-                                                            <button
-                                                                onClick={() => onEdit(ingreso)}
-                                                                className="text-indigo-600 hover:text-indigo-900 p-1 rounded hover:bg-indigo-50"
-                                                                title="Editar"
-                                                            >
-                                                                <FileText className="h-4 w-4" />
-                                                            </button>
-                                                        )}
+                                                    <div className="flex items-center justify-center space-x-2">
+                                                        {/* BOTÓN TRASH2 AGREGADO */}
+                                                        <button
+                                                            onClick={() => handleDelete(ingreso.id)}
+                                                            className="text-red-600 hover:text-red-900 p-1 rounded hover:bg-red-50"
+                                                            title="Eliminar registro"
+                                                        >
+                                                            <Trash2 className="h-4 w-4" />
+                                                        </button>
                                                     </div>
                                                 </td>
                                             </tr>
@@ -566,7 +612,7 @@ return (
                                             >
                                                 Anterior
                                             </button>
-                                            
+
                                             {/* Números de página */}
                                             {Array.from({ length: Math.min(5, totalPaginas) }, (_, i) => {
                                                 const pageNumber = Math.max(1, Math.min(totalPaginas - 4, paginaActual - 2)) + i;
@@ -574,17 +620,16 @@ return (
                                                     <button
                                                         key={pageNumber}
                                                         onClick={() => setPaginaActual(pageNumber)}
-                                                        className={`px-3 py-1 border rounded text-sm ${
-                                                            paginaActual === pageNumber
-                                                                ? 'bg-blue-600 text-white border-blue-600'
-                                                                : 'border-gray-300 hover:bg-gray-100'
-                                                        }`}
+                                                        className={`px-3 py-1 border rounded text-sm ${paginaActual === pageNumber
+                                                            ? 'bg-blue-600 text-white border-blue-600'
+                                                            : 'border-gray-300 hover:bg-gray-100'
+                                                            }`}
                                                     >
                                                         {pageNumber}
                                                     </button>
                                                 );
                                             })}
-                                            
+
                                             <button
                                                 onClick={() => setPaginaActual(Math.min(totalPaginas, paginaActual + 1))}
                                                 disabled={paginaActual === totalPaginas}
@@ -601,4 +646,5 @@ return (
                 </div>
             </div>
         </div>
-    )};
+    )
+};

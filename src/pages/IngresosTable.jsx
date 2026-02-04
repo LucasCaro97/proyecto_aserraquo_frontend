@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { 
-    Eye, 
-    DollarSign, 
-    Calendar, 
-    User, 
-    FileText, 
+import {
+    Eye,
+    DollarSign,
+    Calendar,
+    User,
+    FileText,
     Search,
     Filter,
     Download,
@@ -21,6 +21,7 @@ import { useUsuario } from '../hooks/useUsuario';
 import { obtenerDiaDeLaSemana } from '../hooks/obtenerDiaDeLaSemana';
 import { obtenerFechaActual } from '../hooks/obtenerFechaActual';
 import axios from 'axios';
+import Swal from 'sweetalert2';
 
 export const IngresosTable = ({ onEdit, onView }) => {
     // Estados principales
@@ -124,6 +125,59 @@ export const IngresosTable = ({ onEdit, onView }) => {
         }).format(valor);
     };
 
+    const handleDelete = async (id) => {
+        // 1. Solicitar motivo con SweetAlert2
+        const { value: motivo } = await Swal.fire({
+            title: '¿Confirmar eliminación?',
+            text: "Si la operación contiene cheques asociados, estos serán liberados. Por favor, indica el motivo:",
+            icon: 'warning',
+            input: 'text',
+            inputPlaceholder: 'Escribe el motivo de la eliminación aquí...',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#3085d6',
+            confirmButtonText: 'Sí, eliminar',
+            cancelButtonText: 'Cancelar',
+            inputValidator: (value) => {
+                if (!value) {
+                    return '¡Es obligatorio indicar un motivo para auditar la eliminación!';
+                }
+            }
+        });
+
+        // 2. Si el usuario confirmó y escribió un motivo
+        if (motivo) {
+            try {
+                setIsLoading(true);
+
+                // 3. Petición DELETE enviando el objeto con la propiedad observacionEliminado
+                const response = await axios.delete(`${apiUrl}/ingreso/safeDelete/${id}`, {
+                    data: motivo
+                }
+                );
+
+                if (response.status === 200) {
+                    // 4. Actualizar la lista localmente
+                    setTodosLosIngresos((prevIngresos) => prevIngresos.filter((ingreso) => ingreso.id !== id));
+
+                    // 5. Alerta de éxito profesional
+                    Swal.fire({
+                        title: '¡Eliminado!',
+                        text: 'El ingreso ha sido borrado con éxito.',
+                        icon: 'success',
+                        timer: 2000,
+                        showConfirmButton: false
+                    });
+                }
+            } catch (err) {
+                console.error("Error al eliminar el ingreso:", err);
+                Swal.fire('Error', 'No se pudo completar la operación.', 'error');
+            } finally {
+                setIsLoading(false);
+            }
+        }
+    };
+
     return (
         <div className="min-h-screen bg-gray-50 p-6">
             <div className="max-w-7xl mx-auto">
@@ -165,7 +219,7 @@ export const IngresosTable = ({ onEdit, onView }) => {
                                 <input type="date" value={fechaFin} onChange={(e) => setFechaFin(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" />
                             </div>
                             <div className="flex space-x-2">
-                                <button 
+                                <button
                                     onClick={buscarPorRangoFechas}
                                     disabled={!fechaInicio || !fechaFin || isLoading}
                                     className={`flex-1 py-2 rounded-lg font-medium transition-colors ${!fechaInicio || !fechaFin ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-indigo-600 text-white hover:bg-indigo-700'}`}
@@ -224,7 +278,7 @@ export const IngresosTable = ({ onEdit, onView }) => {
                                                 {ingreso.observacion || '-'}
                                             </td>
                                             <td className="px-6 py-4 text-sm text-gray-900">
-                                                <Trash2 className="h-4 w-4 text-red-600 hover:text-red-900 rounded-md hover:bg-red-100 transition-colors" />
+                                                <Trash2 onClick={() => handleDelete(ingreso.id)} className="h-4 w-4 text-red-600 hover:text-red-900 rounded-md hover:bg-red-100 transition-colors" />
                                             </td>
                                         </tr>
                                     ))}
@@ -235,4 +289,5 @@ export const IngresosTable = ({ onEdit, onView }) => {
                 </div>
             </div>
         </div>
-    )};
+    )
+};

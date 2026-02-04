@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Scale, Calendar, Search, RefreshCw, Filter, X, ArrowUpDown, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Scale, Calendar, Search, RefreshCw, Filter, X, ArrowUpDown, ChevronLeft, ChevronRight, FileText, Trash2 } from 'lucide-react';
 import axios from 'axios';
 import { obtenerDiaDeLaSemana } from '../hooks/obtenerDiaDeLaSemana';
+
+import Swal from 'sweetalert2';
 
 export const TablaRollos = () => {
     // Estados principales
@@ -37,9 +39,9 @@ export const TablaRollos = () => {
     const cargarRollos = async () => {
         setIsLoading(true);
         setError('');
-        
+
         try {
-            const response = await axios.get(`${apiUrl}/rollos-ingresados`);
+            const response = await axios.get(`${apiUrl}/rollos-ingresados/first-load`);
             setRollos(response.data);
             setRollosFiltrados(response.data);
         } catch (err) {
@@ -197,6 +199,49 @@ export const TablaRollos = () => {
         return [...new Set(usuarios)].sort();
     };
 
+    const handleDelete = async (id) => {
+        const { value: motivo } = await Swal.fire({
+            title: '¿Eliminar registro de rollo?',
+            text: "Esta acción marcará el rollo como eliminado. Ingresa el motivo:",
+            icon: 'warning',
+            input: 'text',
+            inputPlaceholder: 'Ej: Error en el pesaje, rollo duplicado...',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            confirmButtonText: 'Sí, eliminar',
+            cancelButtonText: 'Cancelar',
+            inputValidator: (value) => {
+                if (!value) return 'El motivo es obligatorio para la auditoría';
+            }
+        });
+
+        if (motivo) {
+            try {
+                // Enviamos el motivo como texto plano según tu configuración de backend
+                const response = await axios.delete(`${import.meta.env.VITE_API_URL}/rollos-ingresados/safeDelete/${id}`, {
+                    data: motivo,
+                    headers: { 'Content-Type': 'text/plain' }
+                });
+
+                if (response.status === 200) {
+                    // Actualización local para que desaparezca de la tabla inmediatamente
+                    setRollos(prev => prev.filter(r => r.id !== id));
+
+                    Swal.fire({
+                        title: 'Eliminado',
+                        text: 'El registro ha sido eliminado correctamente.',
+                        icon: 'success',
+                        timer: 1500,
+                        showConfirmButton: false
+                    });
+                }
+            } catch (err) {
+                console.error("Error al eliminar rollo:", err);
+                Swal.fire('Error', 'No se pudo eliminar el registro.', 'error');
+            }
+        }
+    };
+
     return (
         <div className="min-h-screen bg-gray-50 p-6">
             <div className="max-w-7xl mx-auto">
@@ -287,7 +332,7 @@ export const TablaRollos = () => {
                                         ))}
                                     </select>
                                 </div>
-                                
+
                                 {/* Nuevo filtro de Tipo de Producto */}
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -305,7 +350,7 @@ export const TablaRollos = () => {
                                     </select>
                                 </div>
                             </div>
-                            
+
                             {/* Filtros de peso */}
                             <div className="flex space-x-2 mt-4">
                                 <div className="flex-1">
@@ -337,7 +382,7 @@ export const TablaRollos = () => {
                             </div>
                         </>
                     )}
-                    
+
 
                     {/* Resumen de filtros aplicados */}
                     <div className="mt-4 text-sm text-gray-600">
@@ -373,60 +418,62 @@ export const TablaRollos = () => {
                                 <table className="min-w-full divide-y divide-gray-200">
                                     <thead className="bg-gray-50">
                                         <tr>
-                                            <th 
+                                            <th
                                                 className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
                                                 onClick={() => cambiarOrdenamiento('id')}
                                             >
                                                 <div className="flex items-center space-x-1">
                                                     <span>ID</span>
-                                                    <ArrowUpDown className="h-4 w-4" />
                                                 </div>
                                             </th>
-                                            <th 
+                                            <th
                                                 className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
                                                 onClick={() => cambiarOrdenamiento('peso')}
                                             >
                                                 <div className="flex items-center space-x-1">
                                                     <span>Peso (tn)</span>
-                                                    <ArrowUpDown className="h-4 w-4" />
                                                 </div>
                                             </th>
-                                            <th 
+                                            <th
                                                 className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
                                                 onClick={() => cambiarOrdenamiento('fecha')}
                                             >
                                                 <div className="flex items-center space-x-1">
                                                     <span>Fecha</span>
-                                                    <ArrowUpDown className="h-4 w-4" />
                                                 </div>
                                             </th>
-                                            <th 
+                                            <th
                                                 className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
                                                 onClick={() => cambiarOrdenamiento('usuario')}
                                             >
                                                 <div className="flex items-center space-x-1">
                                                     <span>Usuario</span>
-                                                    <ArrowUpDown className="h-4 w-4" />
                                                 </div>
                                             </th>
-                                            <th 
+                                            <th
                                                 className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
                                                 onClick={() => cambiarOrdenamiento('tipoProducto')}
                                             >
                                                 <div className="flex items-center space-x-1">
                                                     <span>Tipo de Producto</span>
-                                                    <ArrowUpDown className="h-4 w-4" />
                                                 </div>
+                                            </th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                <div className="flex items-center space-x-1">
+                                                    <span>Observación</span>
+                                                </div>
+                                            </th>
+                                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                Acciones
                                             </th>
                                         </tr>
                                     </thead>
                                     <tbody className="bg-white divide-y divide-gray-200">
                                         {rollosPaginados.map((rollo, index) => (
-                                            <tr 
-                                                key={rollo.id} 
-                                                className={`hover:bg-gray-50 transition-colors ${
-                                                    index % 2 === 0 ? 'bg-white' : 'bg-gray-25'
-                                                }`}
+                                            <tr
+                                                key={rollo.id}
+                                                className={`hover:bg-gray-50 transition-colors ${index % 2 === 0 ? 'bg-white' : 'bg-gray-25'
+                                                    }`}
                                             >
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                                                     #{rollo.id}
@@ -463,6 +510,20 @@ export const TablaRollos = () => {
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                                     <span className="font-medium">{rollo.tipoProducto?.nombre || 'N/A'}</span>
                                                 </td>
+                                                <td className="px-6 py-4 text-sm text-gray-500 italic max-w-xs">
+                                                    <div className="truncate" title={rollo.observacion}>
+                                                        {rollo.observacion || <span className="text-gray-300">Sin observación</span>}
+                                                    </div>
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                                    <button
+                                                        onClick={() => handleDelete(rollo.id)}
+                                                        className="text-red-600 hover:text-red-900 p-2 rounded-lg hover:bg-red-50 transition-colors"
+                                                        title="Eliminar Rollo"
+                                                    >
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </button>
+                                                </td>
                                             </tr>
                                         ))}
                                     </tbody>
@@ -484,12 +545,12 @@ export const TablaRollos = () => {
                                             >
                                                 <ChevronLeft className="h-5 w-5" />
                                             </button>
-                                            
+
                                             <div className="flex space-x-1">
                                                 {Array.from({ length: totalPaginas }, (_, i) => i + 1)
-                                                    .filter(pagina => 
-                                                        pagina === 1 || 
-                                                        pagina === totalPaginas || 
+                                                    .filter(pagina =>
+                                                        pagina === 1 ||
+                                                        pagina === totalPaginas ||
                                                         Math.abs(pagina - paginaActual) <= 1
                                                     )
                                                     .map((pagina, index, arr) => (
@@ -499,11 +560,10 @@ export const TablaRollos = () => {
                                                             )}
                                                             <button
                                                                 onClick={() => setPaginaActual(pagina)}
-                                                                className={`px-3 py-1 text-sm rounded-md transition-colors ${
-                                                                    pagina === paginaActual
-                                                                        ? 'bg-blue-600 text-white'
-                                                                        : 'text-gray-700 hover:bg-gray-100'
-                                                                }`}
+                                                                className={`px-3 py-1 text-sm rounded-md transition-colors ${pagina === paginaActual
+                                                                    ? 'bg-blue-600 text-white'
+                                                                    : 'text-gray-700 hover:bg-gray-100'
+                                                                    }`}
                                                             >
                                                                 {pagina}
                                                             </button>
