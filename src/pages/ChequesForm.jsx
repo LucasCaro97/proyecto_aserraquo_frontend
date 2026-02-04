@@ -268,7 +268,7 @@ export const ChequesForm = () => {
         }
       });
 
-      setSuccess(`¡Importación exitosa! Se han creado ${response.data.length} nuevos cheques.`);
+      setSuccess(`¡Importación exitosa! Se han importado ${response.data.length} nuevos cheques.`);
       // Opcional: limpiar el input de archivo
       setSelectedFile(null);
       document.getElementById('excelFile').value = '';
