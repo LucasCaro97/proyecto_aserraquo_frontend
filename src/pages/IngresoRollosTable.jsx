@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Scale, Calendar, Search, RefreshCw, Filter, X, ArrowUpDown, ChevronLeft, ChevronRight, FileText, Trash2 } from 'lucide-react';
+import { Scale, Calendar, Search, RefreshCw, Filter, X, ArrowUpDown, ChevronLeft, ChevronRight, FileText, Trash2, AlertCircle } from 'lucide-react';
 import axios from 'axios';
 import { obtenerDiaDeLaSemana } from '../hooks/obtenerDiaDeLaSemana';
 
