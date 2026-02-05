@@ -7,7 +7,8 @@ export const BancosForm = ({ onBack, onSuccess }) => {
     // Estados del formulario de Banco
     const [nombreBanco, setNombreBanco] = useState('');
     const [saldoBanco, setSaldoBanco] = useState('');
-    
+    const [vendeCheques, setVendeCheques] = useState(false)
+
     // Estados del formulario de Acuerdo Bancario
     const [montoacuerdo, setMontoAcuerdo] = useState('');
     const [fechaInicio, setFechaInicio] = useState('');
@@ -44,7 +45,7 @@ export const BancosForm = ({ onBack, onSuccess }) => {
         setIsLoadingUltimosBancos(true);
         try {
             const response = await axios.get(`${apiUrl}/banco`);
-            
+
             setTimeout(() => {
                 setUltimosBancos(response.data);
                 setIsLoadingUltimosBancos(false);
@@ -60,7 +61,7 @@ export const BancosForm = ({ onBack, onSuccess }) => {
         setIsLoadingUltimosAcuerdos(true);
         try {
             const response = await axios.get(`${apiUrl}/acuerdo-bancario`);
-            
+
             setTimeout(() => {
                 setUltimosAcuerdos(response.data);
                 setIsLoadingUltimosAcuerdos(false);
@@ -115,11 +116,12 @@ export const BancosForm = ({ onBack, onSuccess }) => {
             const nuevoBanco = {
                 nombre: nombreBanco.trim(),
                 saldo: parseFloat(saldoBanco),
+                vendeCheques: vendeCheques,
                 estado: true
             };
 
             const response = await axios.post(`${apiUrl}/banco`, nuevoBanco);
-            
+
             setTimeout(() => {
                 setSuccess('Banco registrado exitosamente');
                 // Limpiar formulario
@@ -192,7 +194,7 @@ export const BancosForm = ({ onBack, onSuccess }) => {
             };
 
             const response = await axios.post(`${apiUrl}/acuerdo-bancario`, nuevoAcuerdo);
-            
+
             setTimeout(() => {
                 setSuccess('Acuerdo bancario registrado exitosamente');
                 // Limpiar formulario
@@ -297,11 +299,10 @@ export const BancosForm = ({ onBack, onSuccess }) => {
                                 <nav className="flex space-x-8">
                                     <button
                                         onClick={() => setActiveTab('banco')}
-                                        className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
-                                            activeTab === 'banco'
+                                        className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${activeTab === 'banco'
                                                 ? 'border-blue-500 text-blue-600'
                                                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                                        }`}
+                                            }`}
                                     >
                                         <div className="flex items-center space-x-2">
                                             <Building2 className="h-4 w-4" />
@@ -310,11 +311,10 @@ export const BancosForm = ({ onBack, onSuccess }) => {
                                     </button>
                                     <button
                                         onClick={() => setActiveTab('acuerdo')}
-                                        className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
-                                            activeTab === 'acuerdo'
+                                        className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${activeTab === 'acuerdo'
                                                 ? 'border-blue-500 text-blue-600'
                                                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                                        }`}
+                                            }`}
                                     >
                                         <div className="flex items-center space-x-2">
                                             <FileText className="h-4 w-4" />
@@ -373,17 +373,40 @@ export const BancosForm = ({ onBack, onSuccess }) => {
                                     </div>
                                 </div>
 
+                                {/* Campo Vende Cheques */}
+                                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
+                                    <div className="flex items-center space-x-3">
+                                        <div className={`p-2 rounded-lg ${vendeCheques ? 'bg-blue-100' : 'bg-gray-200'}`}>
+                                            <Banknote className={`h-5 w-5 ${vendeCheques ? 'text-blue-600' : 'text-gray-500'}`} />
+                                        </div>
+                                        <div>
+                                            <p className="text-sm font-medium text-gray-700">Venta de Cheques</p>
+                                            <p className="text-xs text-gray-500">¿El banco permite vender cheques?</p>
+                                        </div>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => setVendeCheques(!vendeCheques)}
+                                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${vendeCheques ? 'bg-blue-600' : 'bg-gray-300'
+                                            }`}
+                                    >
+                                        <span
+                                            className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${vendeCheques ? 'translate-x-6' : 'translate-x-1'
+                                                }`}
+                                        />
+                                    </button>
+                                </div>
+
                                 {/* Botones Banco */}
                                 <div className="flex space-x-4 pt-4">
                                     <button
                                         type="button"
                                         onClick={handleSubmitBanco}
                                         disabled={isLoadingBanco || !usuario}
-                                        className={`flex-1 font-bold py-3 px-4 rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
-                                            isLoadingBanco || !usuario
+                                        className={`flex-1 font-bold py-3 px-4 rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${isLoadingBanco || !usuario
                                                 ? 'bg-gray-400 cursor-not-allowed text-gray-200'
                                                 : 'bg-green-600 hover:bg-green-700 text-white'
-                                        } flex items-center justify-center space-x-2`}
+                                            } flex items-center justify-center space-x-2`}
                                     >
                                         {isLoadingBanco ? (
                                             <>
@@ -509,11 +532,10 @@ export const BancosForm = ({ onBack, onSuccess }) => {
                                         type="button"
                                         onClick={handleSubmitAcuerdo}
                                         disabled={isLoadingAcuerdo || !usuario || isLoadingBancos}
-                                        className={`flex-1 font-bold py-3 px-4 rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
-                                            isLoadingAcuerdo || !usuario || isLoadingBancos
+                                        className={`flex-1 font-bold py-3 px-4 rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${isLoadingAcuerdo || !usuario || isLoadingBancos
                                                 ? 'bg-gray-400 cursor-not-allowed text-gray-200'
                                                 : 'bg-green-600 hover:bg-green-700 text-white'
-                                        } flex items-center justify-center space-x-2`}
+                                            } flex items-center justify-center space-x-2`}
                                     >
                                         {isLoadingAcuerdo ? (
                                             <>
@@ -606,11 +628,10 @@ export const BancosForm = ({ onBack, onSuccess }) => {
                                                                     {formatearMoneda(banco.saldo)}
                                                                 </td>
                                                                 <td className="px-3 py-3 whitespace-nowrap text-sm">
-                                                                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                                                                        banco.estado 
-                                                                            ? 'bg-green-100 text-green-800' 
+                                                                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${banco.estado
+                                                                            ? 'bg-green-100 text-green-800'
                                                                             : 'bg-red-100 text-red-800'
-                                                                    }`}>
+                                                                        }`}>
                                                                         {banco.estado ? 'Activo' : 'Inactivo'}
                                                                     </span>
                                                                 </td>
@@ -712,11 +733,10 @@ export const BancosForm = ({ onBack, onSuccess }) => {
                                                                     {formatearFecha(acuerdo.fechaFin)}
                                                                 </td>
                                                                 <td className="px-3 py-3 whitespace-nowrap text-sm">
-                                                                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                                                                        acuerdo.estado 
-                                                                            ? 'bg-green-100 text-green-800' 
+                                                                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${acuerdo.estado
+                                                                            ? 'bg-green-100 text-green-800'
                                                                             : 'bg-red-100 text-red-800'
-                                                                    }`}>
+                                                                        }`}>
                                                                         {acuerdo.estado ? 'Activo' : 'Inactivo'}
                                                                     </span>
                                                                 </td>
@@ -753,4 +773,5 @@ export const BancosForm = ({ onBack, onSuccess }) => {
                 </div>
             </div>
         </div>
-    );}
+    );
+}
