@@ -1,9 +1,12 @@
 import { useState, useEffect } from 'react';
-import { Scale, Calendar, Search, RefreshCw, Filter, X, ArrowUpDown, ChevronLeft, ChevronRight, FileText, Trash2, AlertCircle } from 'lucide-react';
+import { 
+    Scale, Calendar, Search, RefreshCw, Filter, X, 
+    ArrowUpDown, ChevronLeft, ChevronRight, FileText, 
+    Trash2, AlertCircle, Edit2, User 
+} from 'lucide-react';
 import axios from 'axios';
-import { obtenerDiaDeLaSemana } from '../hooks/obtenerDiaDeLaSemana';
-
 import Swal from 'sweetalert2';
+import { IngresoRollosForm } from '../components/IngresoRollos/IngresoRollosForm';
 
 export const TablaRollos = () => {
     // Estados principales
@@ -12,618 +15,253 @@ export const TablaRollos = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState('');
 
-    // Estados para filtros
-    const [filtroFechaDesde, setFiltroFechaDesde] = useState('');
-    const [filtroFechaHasta, setFiltroFechaHasta] = useState('');
-    const [filtroUsuario, setFiltroUsuario] = useState('');
-    const [filtroPesoMin, setFiltroPesoMin] = useState('');
-    const [filtroPesoMax, setFiltroPesoMax] = useState('');
-    const [filtroTipoProducto, setFiltroTipoProducto] = useState('');
-    const [mostrarFiltros, setMostrarFiltros] = useState(false);
-
-    // Estados para ordenamiento
-    const [ordenPor, setOrdenPor] = useState('id');
-    const [ordenDireccion, setOrdenDireccion] = useState('desc');
-
-    // Estados para paginación
-    const [paginaActual, setPaginaActual] = useState(1);
-    const [registrosPorPagina] = useState(10);
-
-    // Estados para los tipos de producto disponibles
+    // Estados para Edición y Catálogos
+    const [editandoRollo, setEditandoRollo] = useState(null);
     const [tiposProducto, setTiposProducto] = useState([]);
+    const [registrosDiarios, setRegistrosDiarios] = useState([]);
+    const [formDataEdicion, setFormDataEdicion] = useState({
+        peso: '',
+        idTipoProducto: '',
+        idRegistroDiario: '',
+        observacion: ''
+    });
 
-    // Variables
+    // Paginación
+    const [paginaActual, setPaginaActual] = useState(1);
+    const [itemsPorPagina] = useState(10);
+
     const apiUrl = import.meta.env.VITE_API_URL;
 
-    // Cargar todos los rollos
-    const cargarRollos = async () => {
-        setIsLoading(true);
-        setError('');
+    // Función para formatear nros: 162.570,00
+    const formatearToneladas = (valor) => {
+        return Number(valor).toLocaleString('es-AR', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        });
+    };
 
+    useEffect(() => {
+        obtenerRollos();
+        cargarCatalogos();
+    }, []);
+
+    const cargarCatalogos = async () => {
         try {
-            const response = await axios.get(`${apiUrl}/rollos-ingresados/first-load`);
+            const [resProd, resReg] = await Promise.all([
+                axios.get(`${apiUrl}/tipo-producto`),
+                axios.get(`${apiUrl}/registro-financiero/sorted-top10-desc`)
+            ]);
+            setTiposProducto(resProd.data);
+            setRegistrosDiarios(resReg.data);
+        } catch (err) {
+            console.error("Error cargando catálogos:", err);
+        }
+    };
+
+    const obtenerRollos = async () => {
+        setIsLoading(true);
+        try {
+            const response = await axios.get(`${apiUrl}/rollos-ingresados`);
             setRollos(response.data);
             setRollosFiltrados(response.data);
         } catch (err) {
-            console.error('Error al cargar datos de rollos:', err);
-            setError('No se pudieron cargar los datos. Inténtalo de nuevo más tarde.');
+            setError('Error al cargar datos');
         } finally {
             setIsLoading(false);
         }
     };
 
-    // Función para cargar los tipos de producto
-    const cargarTiposProducto = async () => {
-        try {
-            const response = await axios.get(`${apiUrl}/tipo-producto`);
-            setTiposProducto(response.data);
-        } catch (err) {
-            console.error('Error al cargar tipos de producto:', err);
-        }
-    };
-
-    // Cargar datos al montar el componente
-    useEffect(() => {
-        cargarRollos();
-        cargarTiposProducto();
-    }, []);
-
-    // Aplicar filtros
-    useEffect(() => {
-        let resultado = [...rollos];
-
-        // Filtro por fecha desde
-        if (filtroFechaDesde) {
-            const fechaDesde = new Date(filtroFechaDesde);
-            resultado = resultado.filter(rollo => {
-                const fechaRollo = new Date(rollo.registroFinancieroDiario.fecha);
-                return fechaRollo >= fechaDesde;
-            });
-        }
-
-        // Filtro por fecha hasta
-        if (filtroFechaHasta) {
-            const fechaHasta = new Date(filtroFechaHasta);
-            // Agregar 23:59:59 al día seleccionado para incluir todo el día
-            fechaHasta.setHours(23, 59, 59, 999);
-            resultado = resultado.filter(rollo => {
-                const fechaRollo = new Date(rollo.registroFinancieroDiario.fecha);
-                return fechaRollo <= fechaHasta;
-            });
-        }
-
-        // Filtro por usuario
-        if (filtroUsuario) {
-            resultado = resultado.filter(rollo =>
-                rollo.usuario.nombre.toLowerCase().includes(filtroUsuario.toLowerCase())
-            );
-        }
-
-        // Filtro por peso mínimo
-        if (filtroPesoMin) {
-            resultado = resultado.filter(rollo =>
-                parseFloat(rollo.peso) >= parseFloat(filtroPesoMin)
-            );
-        }
-
-        // Filtro por peso máximo
-        if (filtroPesoMax) {
-            resultado = resultado.filter(rollo =>
-                parseFloat(rollo.peso) <= parseFloat(filtroPesoMax)
-            );
-        }
-
-        // Nuevo filtro por tipo de producto
-        if (filtroTipoProducto) {
-            resultado = resultado.filter(rollo =>
-                rollo.tipoProducto?.id === parseInt(filtroTipoProducto)
-            );
-        }
-
-        // Aplicar ordenamiento
-        resultado.sort((a, b) => {
-            let valorA, valorB;
-
-            switch (ordenPor) {
-                case 'id':
-                    valorA = a.id;
-                    valorB = b.id;
-                    break;
-                case 'peso':
-                    valorA = parseFloat(a.peso);
-                    valorB = parseFloat(b.peso);
-                    break;
-                case 'fecha':
-                    valorA = new Date(a.registroFinancieroDiario.fecha);
-                    valorB = new Date(b.registroFinancieroDiario.fecha);
-                    break;
-                case 'usuario':
-                    valorA = a.usuario.nombre.toLowerCase();
-                    valorB = b.usuario.nombre.toLowerCase();
-                    break;
-                case 'tipoProducto':
-                    valorA = a.tipoProducto?.nombre.toLowerCase();
-                    valorB = b.tipoProducto?.nombre.toLowerCase();
-                    break;
-                default:
-                    valorA = a.id;
-                    valorB = b.id;
-            }
-
-            if (ordenDireccion === 'asc') {
-                return valorA > valorB ? 1 : -1;
-            } else {
-                return valorA < valorB ? 1 : -1;
-            }
+    const iniciarEdicion = (rollo) => {
+        setEditandoRollo(rollo);
+        // Mapeo dinámico para encontrar IDs si vienen como objetos
+        setFormDataEdicion({
+            peso: rollo.peso,
+            idTipoProducto: rollo.idTipoProducto || (rollo.tipoProducto?.id || ''),
+            idRegistroDiario: rollo.idRegistroDiario || (rollo.registroFinancieroDiario?.id || ''),
+            observacion: rollo.observacion || ''
         });
-
-        setRollosFiltrados(resultado);
-        setPaginaActual(1); // Resetear a la primera página cuando se filtran los datos
-    }, [rollos, filtroFechaDesde, filtroFechaHasta, filtroUsuario, filtroPesoMin, filtroPesoMax, filtroTipoProducto, ordenPor, ordenDireccion]);
-
-    // Limpiar filtros
-    const limpiarFiltros = () => {
-        setFiltroFechaDesde('');
-        setFiltroFechaHasta('');
-        setFiltroUsuario('');
-        setFiltroPesoMin('');
-        setFiltroPesoMax('');
-        setFiltroTipoProducto('');
-        setPaginaActual(1);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
-    // Cambiar ordenamiento
-    const cambiarOrdenamiento = (campo) => {
-        if (ordenPor === campo) {
-            setOrdenDireccion(ordenDireccion === 'asc' ? 'desc' : 'asc');
-        } else {
-            setOrdenPor(campo);
-            setOrdenDireccion('desc');
+    const handleActualizar = async (e) => {
+        e.preventDefault();
+        setIsLoading(true);
+        try {
+            const dto = {
+                cantidadRollos: editandoRollo.cantidadRollos || 1,
+                peso: parseFloat(formDataEdicion.peso),
+                idTipoProducto: parseInt(formDataEdicion.idTipoProducto),
+                idRegistroDiario: parseInt(formDataEdicion.idRegistroDiario),
+                idUsuario: editandoRollo.idUsuario || 1,
+                observacion: formDataEdicion.observacion
+            };
+            await axios.put(`${apiUrl}/rollos-ingresados/${editandoRollo.id}`, dto);
+            setEditandoRollo(null);
+            obtenerRollos();
+            Swal.fire({ icon: 'success', title: 'Actualizado', timer: 1500, showConfirmButton: false });
+        } catch (err) {
+            Swal.fire('Error', 'No se pudo actualizar', 'error');
+        } finally {
+            setIsLoading(false);
         }
     };
 
-    const formatearFecha = (fechaString) => {
-        // Si la fecha es "2025-09-02", split la convierte en ["2025", "09", "02"]
-        const partes = fechaString.split('-');
-        return `${partes[2]}-${partes[1]}-${partes[0]}`;
-    };
-
-    // Calcular paginación
-    const indiceInicio = (paginaActual - 1) * registrosPorPagina;
-    const indiceFin = indiceInicio + registrosPorPagina;
-    const rollosPaginados = rollosFiltrados.slice(indiceInicio, indiceFin);
-    const totalPaginas = Math.ceil(rollosFiltrados.length / registrosPorPagina);
-
-    const obtenerUsuariosUnicos = () => {
-        const usuarios = rollos.map(rollo => rollo.usuario.nombre);
-        return [...new Set(usuarios)].sort();
-    };
-
-    const handleDelete = async (id) => {
-        const { value: motivo } = await Swal.fire({
-            title: '¿Eliminar registro de rollo?',
-            text: "Esta acción marcará el rollo como eliminado. Ingresa el motivo:",
+    const eliminarRollo = async (id) => {
+        const result = await Swal.fire({
+            title: '¿Eliminar registro?',
+            text: "Esta acción no se puede deshacer",
             icon: 'warning',
-            input: 'text',
-            inputPlaceholder: 'Ej: Error en el pesaje, rollo duplicado...',
             showCancelButton: true,
             confirmButtonColor: '#d33',
-            confirmButtonText: 'Sí, eliminar',
-            cancelButtonText: 'Cancelar',
-            inputValidator: (value) => {
-                if (!value) return 'El motivo es obligatorio para la auditoría';
-            }
+            confirmButtonText: 'Sí, eliminar'
         });
 
-        if (motivo) {
+        if (result.isConfirmed) {
             try {
-                // Enviamos el motivo como texto plano según tu configuración de backend
-                const response = await axios.delete(`${import.meta.env.VITE_API_URL}/rollos-ingresados/safeDelete/${id}`, {
-                    data: motivo,
-                    headers: { 'Content-Type': 'text/plain' }
-                });
-
-                if (response.status === 200) {
-                    // Actualización local para que desaparezca de la tabla inmediatamente
-                    setRollos(prev => prev.filter(r => r.id !== id));
-
-                    Swal.fire({
-                        title: 'Eliminado',
-                        text: 'El registro ha sido eliminado correctamente.',
-                        icon: 'success',
-                        timer: 1500,
-                        showConfirmButton: false
-                    });
-                }
+                await axios.delete(`${apiUrl}/rollos-ingresados/${id}`);
+                obtenerRollos();
+                Swal.fire('Eliminado', 'El registro ha sido borrado.', 'success');
             } catch (err) {
-                console.error("Error al eliminar rollo:", err);
-                Swal.fire('Error', 'No se pudo eliminar el registro.', 'error');
+                Swal.fire('Error', 'No se pudo eliminar', 'error');
             }
         }
     };
 
+    const itemsPaginados = rollosFiltrados.slice((paginaActual - 1) * itemsPorPagina, paginaActual * itemsPorPagina);
+
     return (
-        <div className="min-h-screen bg-gray-50 p-6">
-            <div className="max-w-7xl mx-auto">
-                {/* Header */}
-                <div className="mb-8">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <h1 className="text-3xl font-bold text-gray-900">Registro de Rollos</h1>
-                            <p className="text-gray-600 mt-1">
-                                Visualiza y gestiona todos los registros de rollos ingresados
-                            </p>
-                        </div>
-                        <button
-                            onClick={cargarRollos}
-                            disabled={isLoading}
-                            className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-400"
-                        >
-                            <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
-                            <span>Actualizar</span>
-                        </button>
-                    </div>
-                </div>
-
-                {/* Panel de filtros */}
-                <div className="bg-white rounded-xl shadow-md p-6 mb-6">
-                    <div
-                        className="flex items-center justify-between mb-4 cursor-pointer"
-                        onClick={() => setMostrarFiltros(!mostrarFiltros)}
-                    >
-                        <h2 className="text-lg font-semibold text-gray-900 flex items-center space-x-2">
-                            <Filter className="h-5 w-5" />
-                            <span>Filtros</span>
+        <div className="space-y-6">
+            {/* FORMULARIO DE EDICIÓN */}
+            {editandoRollo && (
+                <div className="bg-white rounded-xl shadow-lg border border-blue-200 overflow-hidden animate-in fade-in slide-in-from-top-4">
+                    <div className="bg-blue-600 px-6 py-4 flex justify-between items-center">
+                        <h2 className="text-white font-bold flex items-center gap-2">
+                            <Edit2 className="h-5 w-5" /> Editando Registro #{editandoRollo.id}
                         </h2>
-                        <button
-                            onClick={(e) => {
-                                e.stopPropagation(); // Evita que el clic en el botón cierre el panel
-                                limpiarFiltros();
-                            }}
-                            className="text-sm text-gray-500 hover:text-gray-700 flex items-center space-x-1"
+                        <button onClick={() => setEditandoRollo(null)} className="text-white hover:bg-blue-700 p-1 rounded-full"><X/></button>
+                    </div>
+                    <div className="p-6">
+                        <IngresoRollosForm 
+                            formData={formDataEdicion}
+                            setFormData={setFormDataEdicion}
+                            tiposProducto={tiposProducto}
+                            registrosDiarios={registrosDiarios}
+                            onSubmit={handleActualizar}
+                            onCancel={() => setEditandoRollo(null)}
+                            isLoading={isLoading}
+                            isEdit={true}
+                        />
+                    </div>
+                </div>
+            )}
+
+            <div className="bg-white rounded-xl shadow-md p-6 border border-gray-100">
+                <div className="flex justify-between items-center mb-6">
+                    <h1 className="text-2xl font-bold text-gray-800">Listado de Rollos</h1>
+                    <button onClick={obtenerRollos} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+                        <RefreshCw className={`h-5 w-5 ${isLoading ? 'animate-spin' : ''}`} />
+                    </button>
+                </div>
+
+                <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse">
+                        <thead>
+                            <tr className="bg-gray-50 border-b border-gray-200">
+                                <th className="px-4 py-4 text-xs font-semibold text-gray-500 uppercase">ID</th>
+                                <th className="px-4 py-4 text-xs font-semibold text-gray-500 uppercase">Peso</th>
+                                <th className="px-4 py-4 text-xs font-semibold text-gray-500 uppercase">Fecha Reg.</th>
+                                <th className="px-4 py-4 text-xs font-semibold text-gray-500 uppercase">Producto</th>
+                                <th className="px-4 py-4 text-xs font-semibold text-gray-500 uppercase">Usuario</th>
+                                <th className="px-4 py-4 text-xs font-semibold text-gray-500 uppercase">Observación</th>
+                                <th className="px-4 py-4 text-xs font-semibold text-gray-500 uppercase text-right">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                            {itemsPaginados.map((rollo) => (
+                                <tr key={rollo.id} className="hover:bg-gray-50 transition-colors">
+                                    <td className="px-4 py-4 text-sm font-medium text-gray-900">#{rollo.id}</td>
+                                    
+                                    {/* Formato: 162.570,00 */}
+                                    <td className="px-4 py-4 text-sm font-bold text-blue-700">
+                                        {formatearToneladas(rollo.peso)} tn
+                                    </td>
+
+                                    {/* registroFinancieroDiario.fecha */}
+                                    <td className="px-4 py-4 text-sm text-gray-600">
+                                        {rollo.registroFinancieroDiario?.fecha 
+                                            ? new Date(rollo.registroFinancieroDiario.fecha).toLocaleDateString() 
+                                            : 'N/A'}
+                                    </td>
+
+                                    {/* tipoProducto */}
+                                    <td className="px-4 py-4 text-sm text-gray-700">
+                                        {typeof rollo.tipoProducto === 'object' ? rollo.tipoProducto.nombre : (rollo.tipoProducto || 'N/A')}
+                                    </td>
+
+                                    {/* usuario */}
+                                    <td className="px-4 py-4 text-sm text-gray-600">
+                                        <div className="flex items-center gap-1">
+                                            <User className="h-3 w-3 text-gray-400" />
+                                            {rollo.usuarioNombre || 'Sistema'}
+                                        </div>
+                                    </td>
+
+                                    {/* observacion */}
+                                    <td className="px-4 py-4 text-sm text-gray-500 italic max-w-xs truncate">
+                                        {rollo.observacion || '-'}
+                                    </td>
+
+                                    <td className="px-4 py-4 text-right space-x-1">
+                                        <button 
+                                            onClick={() => iniciarEdicion(rollo)}
+                                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                        >
+                                            <Edit2 className="h-4 w-4" />
+                                        </button>
+                                        <button 
+                                            onClick={() => eliminarRollo(rollo.id)}
+                                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                        >
+                                            <Trash2 className="h-4 w-4" />
+                                        </button>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+
+                {/* PAGINACIÓN */}
+                <div className="mt-6 flex items-center justify-between border-t border-gray-100 pt-4">
+                    <p className="text-sm text-gray-500">Mostrando página {paginaActual}</p>
+                    <div className="flex gap-2">
+                        <button 
+                            disabled={paginaActual === 1}
+                            onClick={() => setPaginaActual(p => p - 1)}
+                            className="p-2 border rounded-lg hover:bg-gray-50 disabled:opacity-30"
                         >
-                            <X className="h-4 w-4" />
-                            <span>Limpiar filtros</span>
+                            <ChevronLeft className="h-5 w-5" />
+                        </button>
+                        <button 
+                            disabled={paginaActual * itemsPorPagina >= rollosFiltrados.length}
+                            onClick={() => setPaginaActual(p => p + 1)}
+                            className="p-2 border rounded-lg hover:bg-gray-50 disabled:opacity-30"
+                        >
+                            <ChevronRight className="h-5 w-5" />
                         </button>
                     </div>
-
-                    {mostrarFiltros && (
-                        <>
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                                {/* Filtro fecha desde */}
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                                        Fecha desde
-                                    </label>
-                                    <input
-                                        type="date"
-                                        value={filtroFechaDesde}
-                                        onChange={(e) => setFiltroFechaDesde(e.target.value)}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                    />
-                                </div>
-
-                                {/* Filtro fecha hasta */}
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                                        Fecha hasta
-                                    </label>
-                                    <input
-                                        type="date"
-                                        value={filtroFechaHasta}
-                                        onChange={(e) => setFiltroFechaHasta(e.target.value)}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                    />
-                                </div>
-
-                                {/* Filtro usuario */}
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                                        Usuario
-                                    </label>
-                                    <select
-                                        value={filtroUsuario}
-                                        onChange={(e) => setFiltroUsuario(e.target.value)}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                    >
-                                        <option value="">Todos los usuarios</option>
-                                        {obtenerUsuariosUnicos().map(usuario => (
-                                            <option key={usuario} value={usuario}>{usuario}</option>
-                                        ))}
-                                    </select>
-                                </div>
-
-                                {/* Nuevo filtro de Tipo de Producto */}
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                                        Tipo de Producto
-                                    </label>
-                                    <select
-                                        value={filtroTipoProducto}
-                                        onChange={(e) => setFiltroTipoProducto(e.target.value)}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                    >
-                                        <option value="">Todos los tipos</option>
-                                        {tiposProducto.map(tipo => (
-                                            <option key={tipo.id} value={tipo.id}>{tipo.nombre}</option>
-                                        ))}
-                                    </select>
-                                </div>
-                            </div>
-
-                            {/* Filtros de peso */}
-                            <div className="flex space-x-2 mt-4">
-                                <div className="flex-1">
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                                        Peso min (tn)
-                                    </label>
-                                    <input
-                                        type="number"
-                                        step="0.01"
-                                        value={filtroPesoMin}
-                                        onChange={(e) => setFiltroPesoMin(e.target.value)}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                        placeholder="Min"
-                                    />
-                                </div>
-                                <div className="flex-1">
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                                        Peso max (tn)
-                                    </label>
-                                    <input
-                                        type="number"
-                                        step="0.01"
-                                        value={filtroPesoMax}
-                                        onChange={(e) => setFiltroPesoMax(e.target.value)}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                        placeholder="Max"
-                                    />
-                                </div>
-                            </div>
-                        </>
-                    )}
-
-
-                    {/* Resumen de filtros aplicados */}
-                    <div className="mt-4 text-sm text-gray-600">
-                        Mostrando {rollosFiltrados.length} de {rollos.length} registros
-                    </div>
                 </div>
 
-                {/* Mensajes de error */}
-                {error && (
-                    <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4 flex items-center space-x-2">
-                        <AlertCircle className="h-5 w-5 text-red-500 flex-shrink-0" />
-                        <span className="text-sm text-red-700">{error}</span>
-                    </div>
-                )}
-
-                {/* Tabla de registros */}
-                <div className="bg-white rounded-xl shadow-md overflow-hidden">
-                    {isLoading ? (
-                        <div className="flex items-center justify-center py-12">
-                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                            <span className="ml-3 text-gray-600">Cargando registros...</span>
-                        </div>
-                    ) : rollosFiltrados.length === 0 ? (
-                        <div className="text-center py-12 text-gray-500">
-                            <Scale className="h-16 w-16 mx-auto text-gray-300 mb-4" />
-                            <h3 className="text-lg font-medium text-gray-900 mb-2">No hay registros</h3>
-                            <p>No se encontraron rollos que coincidan con los filtros aplicados</p>
-                        </div>
-                    ) : (
-                        <>
-                            {/* Tabla */}
-                            <div className="overflow-x-auto">
-                                <table className="min-w-full divide-y divide-gray-200">
-                                    <thead className="bg-gray-50">
-                                        <tr>
-                                            <th
-                                                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
-                                                onClick={() => cambiarOrdenamiento('id')}
-                                            >
-                                                <div className="flex items-center space-x-1">
-                                                    <span>ID</span>
-                                                </div>
-                                            </th>
-                                            <th
-                                                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
-                                                onClick={() => cambiarOrdenamiento('peso')}
-                                            >
-                                                <div className="flex items-center space-x-1">
-                                                    <span>Peso (tn)</span>
-                                                </div>
-                                            </th>
-                                            <th
-                                                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
-                                                onClick={() => cambiarOrdenamiento('fecha')}
-                                            >
-                                                <div className="flex items-center space-x-1">
-                                                    <span>Fecha</span>
-                                                </div>
-                                            </th>
-                                            <th
-                                                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
-                                                onClick={() => cambiarOrdenamiento('usuario')}
-                                            >
-                                                <div className="flex items-center space-x-1">
-                                                    <span>Usuario</span>
-                                                </div>
-                                            </th>
-                                            <th
-                                                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
-                                                onClick={() => cambiarOrdenamiento('tipoProducto')}
-                                            >
-                                                <div className="flex items-center space-x-1">
-                                                    <span>Tipo de Producto</span>
-                                                </div>
-                                            </th>
-                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                <div className="flex items-center space-x-1">
-                                                    <span>Observación</span>
-                                                </div>
-                                            </th>
-                                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                Acciones
-                                            </th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="bg-white divide-y divide-gray-200">
-                                        {rollosPaginados.map((rollo, index) => (
-                                            <tr
-                                                key={rollo.id}
-                                                className={`hover:bg-gray-50 transition-colors ${index % 2 === 0 ? 'bg-white' : 'bg-gray-25'
-                                                    }`}
-                                            >
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                                    #{rollo.id}
-                                                </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                                    <div className="flex items-center space-x-2">
-                                                        <Scale className="h-4 w-4 text-gray-400" />
-                                                        <span className="font-medium">{parseFloat(rollo.peso).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                                                    </div>
-                                                </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                                    <div className="flex items-center space-x-2">
-                                                        <Calendar className="h-4 w-4 text-gray-400" />
-                                                        <div>
-                                                            <div className="font-medium">
-                                                                {formatearFecha(rollo.registroFinancieroDiario.fecha)}
-                                                            </div>
-                                                            <div className="text-xs text-gray-500">
-                                                                {obtenerDiaDeLaSemana(rollo.registroFinancieroDiario.fecha)}
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                                    <div className="flex items-center space-x-2">
-                                                        <div className="h-8 w-8 bg-blue-100 rounded-full flex items-center justify-center">
-                                                            <span className="text-blue-600 font-medium text-xs">
-                                                                {rollo.usuario.nombre.charAt(0).toUpperCase()}
-                                                            </span>
-                                                        </div>
-                                                        <span className="font-medium">{rollo.usuario.nombre}</span>
-                                                    </div>
-                                                </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                                    <span className="font-medium">{rollo.tipoProducto?.nombre || 'N/A'}</span>
-                                                </td>
-                                                <td className="px-6 py-4 text-sm text-gray-500 italic max-w-xs">
-                                                    <div className="truncate" title={rollo.observacion}>
-                                                        {rollo.observacion || <span className="text-gray-300">Sin observación</span>}
-                                                    </div>
-                                                </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                                    <button
-                                                        onClick={() => handleDelete(rollo.id)}
-                                                        className="text-red-600 hover:text-red-900 p-2 rounded-lg hover:bg-red-50 transition-colors"
-                                                        title="Eliminar Rollo"
-                                                    >
-                                                        <Trash2 className="h-4 w-4" />
-                                                    </button>
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-
-                            {/* Paginación */}
-                            {totalPaginas > 1 && (
-                                <div className="px-6 py-4 bg-gray-50 border-t border-gray-200">
-                                    <div className="flex items-center justify-between">
-                                        <div className="text-sm text-gray-700">
-                                            Mostrando {indiceInicio + 1} a {Math.min(indiceFin, rollosFiltrados.length)} de {rollosFiltrados.length} registros
-                                        </div>
-                                        <div className="flex items-center space-x-2">
-                                            <button
-                                                onClick={() => setPaginaActual(Math.max(1, paginaActual - 1))}
-                                                disabled={paginaActual === 1}
-                                                className="p-2 text-gray-500 hover:text-gray-700 disabled:text-gray-300 disabled:cursor-not-allowed"
-                                            >
-                                                <ChevronLeft className="h-5 w-5" />
-                                            </button>
-
-                                            <div className="flex space-x-1">
-                                                {Array.from({ length: totalPaginas }, (_, i) => i + 1)
-                                                    .filter(pagina =>
-                                                        pagina === 1 ||
-                                                        pagina === totalPaginas ||
-                                                        Math.abs(pagina - paginaActual) <= 1
-                                                    )
-                                                    .map((pagina, index, arr) => (
-                                                        <div key={pagina} className="flex items-center">
-                                                            {index > 0 && arr[index - 1] !== pagina - 1 && (
-                                                                <span className="px-2 text-gray-400">...</span>
-                                                            )}
-                                                            <button
-                                                                onClick={() => setPaginaActual(pagina)}
-                                                                className={`px-3 py-1 text-sm rounded-md transition-colors ${pagina === paginaActual
-                                                                    ? 'bg-blue-600 text-white'
-                                                                    : 'text-gray-700 hover:bg-gray-100'
-                                                                    }`}
-                                                            >
-                                                                {pagina}
-                                                            </button>
-                                                        </div>
-                                                    ))}
-                                            </div>
-
-                                            <button
-                                                onClick={() => setPaginaActual(Math.min(totalPaginas, paginaActual + 1))}
-                                                disabled={paginaActual === totalPaginas}
-                                                className="p-2 text-gray-500 hover:text-gray-700 disabled:text-gray-300 disabled:cursor-not-allowed"
-                                            >
-                                                <ChevronRight className="h-5 w-5" />
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-                        </>
-                    )}
-                </div>
-
-                {/* Estadísticas resumen */}
+                {/* ESTADÍSTICAS */}
                 {!isLoading && rollosFiltrados.length > 0 && (
-                    <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div className="bg-white rounded-lg shadow-md p-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-8">
+                        <div className="bg-blue-50 rounded-lg p-4 border border-blue-100">
                             <div className="flex items-center space-x-3">
-                                <div className="p-2 bg-blue-100 rounded-lg">
-                                    <Scale className="h-6 w-6 text-blue-600" />
-                                </div>
-                                <div>
-                                    <p className="text-sm text-gray-600">Total Registros</p>
-                                    <p className="text-2xl font-bold text-gray-900">{rollosFiltrados.length}</p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="bg-white rounded-lg shadow-md p-4">
-                            <div className="flex items-center space-x-3">
-                                <div className="p-2 bg-green-100 rounded-lg">
-                                    <Scale className="h-6 w-6 text-green-600" />
-                                </div>
+                                <div className="p-2 bg-blue-100 rounded-lg"><Scale className="h-6 w-6 text-blue-600" /></div>
                                 <div>
                                     <p className="text-sm text-gray-600">Peso Total</p>
                                     <p className="text-2xl font-bold text-gray-900">
-                                        {rollosFiltrados.reduce((sum, rollo) => sum + parseFloat(rollo.peso), 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} tn
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="bg-white rounded-lg shadow-md p-4">
-                            <div className="flex items-center space-x-3">
-                                <div className="p-2 bg-purple-100 rounded-lg">
-                                    <Scale className="h-6 w-6 text-purple-600" />
-                                </div>
-                                <div>
-                                    <p className="text-sm text-gray-600">Peso Promedio</p>
-                                    <p className="text-2xl font-bold text-gray-900">
-                                        {(rollosFiltrados.reduce((sum, rollo) => sum + parseFloat(rollo.peso), 0) / rollosFiltrados.length).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} tn
+                                        {formatearToneladas(rollosFiltrados.reduce((sum, r) => sum + parseFloat(r.peso), 0))} tn
                                     </p>
                                 </div>
                             </div>
