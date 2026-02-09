@@ -51,11 +51,11 @@ export const AdminDashboard = () => {
 
                 const totals = data.reduce(
                     (acc, current) => {
-                        if (current.tipoProducto === 'Rollos') {
+                        if (current.tipoProducto === 'ROLLOS') {
                             acc.totalRollos = current.pesoTotal;
-                        } else if (current.tipoProducto === 'Resina') {
+                        } else if (current.tipoProducto === 'RESINA') {
                             acc.totalResina = current.pesoTotal;
-                        } else if (current.tipoProducto === 'Harina') {
+                        } else if (current.tipoProducto === 'HARINA') {
                             acc.totalHarina = current.pesoTotal;
                         }
                         return acc;

@@ -178,6 +178,31 @@ export const IngresosTable = ({ onEdit, onView }) => {
         }
     };
 
+    const exportarIngresosExcel = async () => {
+        try {
+            setIsLoading(true);
+            const response = await axios.post(
+                `${apiUrl}/ingreso/exportar-excel-lista`,
+                todosLosIngresos, // Tu estado con la lista filtrada
+                { responseType: 'blob' }
+            );
+
+            const url = window.URL.createObjectURL(new Blob([response.data]));
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', `reporte_ingresos_${fechaActual}.xlsx`);
+            document.body.appendChild(link);
+            link.click();
+
+            link.remove();
+            window.URL.revokeObjectURL(url);
+        } catch (error) {
+            Swal.fire('Error', 'No se pudo exportar el Excel', 'error');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
     return (
         <div className="min-h-screen bg-gray-50 p-6">
             <div className="max-w-7xl mx-auto">
@@ -192,6 +217,14 @@ export const IngresosTable = ({ onEdit, onView }) => {
                         </button>
                         <button onClick={restablecerYHoy} className="flex items-center space-x-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors">
                             <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} /> <span>Hoy</span>
+                        </button>
+                        <button
+                            onClick={exportarIngresosExcel}
+                            disabled={isLoading || todosLosIngresos.length === 0}
+                            className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400"
+                        >
+                            <Download className="h-4 w-4" />
+                            <span>{isLoading ? 'Exportando...' : 'Exportar Excel'}</span>
                         </button>
                     </div>
                 </div>

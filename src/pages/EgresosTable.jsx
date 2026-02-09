@@ -211,6 +211,41 @@ export const EgresosTable = () => {
         }
     };
 
+    const exportarAExcel = async () => {
+        if (todosLosEgresos.length === 0) {
+            Swal.fire('Atención', 'No hay datos en la tabla para exportar', 'info');
+            return;
+        }
+
+        try {
+            setIsLoading(true);
+            const response = await axios.post(
+                `${apiUrl}/egreso/exportar-excel-lista`,
+                todosLosEgresos, // Enviamos el estado actual
+                { responseType: 'blob' } // INDISPENSABLE para archivos
+            );
+
+            // Crear un enlace temporal para descargar el archivo
+            const url = window.URL.createObjectURL(new Blob([response.data]));
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', `reporte_egresos_${fechaActual}.xlsx`);
+            document.body.appendChild(link);
+            link.click();
+
+            // Limpieza
+            link.parentNode.removeChild(link);
+            window.URL.revokeObjectURL(url);
+
+            setSuccess('Excel generado con éxito');
+        } catch (error) {
+            console.error('Error al exportar:', error);
+            setError('No se pudo generar el archivo Excel');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
     return (
         <div className="min-h-screen bg-gray-50 p-6">
             <div className="max-w-7xl mx-auto">
@@ -224,6 +259,14 @@ export const EgresosTable = () => {
                         </button>
                         <button onClick={cargarTodosLosEgresos} className="flex items-center space-x-2 px-4 py-2 bg-gray-600 text-white rounded-lg">
                             <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} /> <span>Hoy</span>
+                        </button>
+                        <button
+                            onClick={exportarAExcel}
+                            disabled={isLoading || todosLosEgresos.length === 0}
+                            className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400"
+                        >
+                            <Download className="h-4 w-4" />
+                            <span>{isLoading ? 'Exportando...' : 'Exportar Excel'}</span>
                         </button>
                     </div>
                 </div>
