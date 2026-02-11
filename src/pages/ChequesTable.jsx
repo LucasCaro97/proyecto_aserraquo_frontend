@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import {
-    CreditCard, Loader2, AlertTriangle, Eye, Eraser, ChevronUp, ChevronDown, Search, Calendar
+    CreditCard, Loader2, AlertTriangle, Eye, Eraser, ChevronUp, ChevronDown, Search, Calendar, Download
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useFechaFormateador } from '../hooks/formatearFecha'
+import Swal from 'sweetalert2';
 
 const apiUrl = import.meta.env.VITE_API_URL;
 
@@ -112,6 +113,44 @@ export const ChequesTable = () => {
 
     const isRecibido = tipoSeleccionado === TIPO_CHEQUE.RECIBIDO;
 
+    const exportarExcel = async () => {
+        // Usamos 'chequesFiltrados' que es el resultado de tu useMemo
+        if (chequesFiltrados.length === 0) {
+            Swal.fire('Atención', 'No hay datos para exportar con los filtros actuales', 'info');
+            return;
+        }
+
+        try {
+            Swal.fire({
+                title: 'Generando Excel',
+                text: 'Preparando reporte de cheques...',
+                didOpen: () => Swal.showLoading(),
+                allowOutsideClick: false
+            });
+
+            const response = await axios({
+                url: `${apiUrl}/cheques/exportar-excel`,
+                method: 'POST',
+                data: chequesFiltrados, // Enviamos la lista final (servidor + cliente filter)
+                responseType: 'blob',
+            });
+
+            const url = window.URL.createObjectURL(new Blob([response.data]));
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', `Reporte_Cheques_${new Date().toISOString().split('T')[0]}.xlsx`);
+            document.body.appendChild(link);
+            link.click();
+
+            link.remove();
+            window.URL.revokeObjectURL(url);
+            Swal.close();
+        } catch (err) {
+            console.error(err);
+            Swal.fire('Error', 'No se pudo exportar el listado', 'error');
+        }
+    };
+
     return (
         <div className="p-6 bg-gray-50 min-h-screen font-sans">
             <div className="mb-8">
@@ -122,31 +161,66 @@ export const ChequesTable = () => {
 
             {/* FILTROS */}
             <div className="bg-white p-5 rounded-xl shadow-sm border mb-6 space-y-5">
-                <div className="flex flex-wrap gap-4 items-center border-b pb-4">
-                    <div className="flex bg-gray-100 p-1 rounded-lg">
-                        <button onClick={() => { setTipoSeleccionado(TIPO_CHEQUE.RECIBIDO); setFiltroEstado('PENDIENTE'); }}
-                            className={`px-6 py-2 rounded-md text-sm font-bold transition-all ${isRecibido ? 'bg-white text-purple-600 shadow-sm' : 'text-gray-500'}`}>
-                            Recibidos
-                        </button>
-                        <button onClick={() => { setTipoSeleccionado(TIPO_CHEQUE.EMITIDO); setFiltroEstado('ENTREGADO'); }}
-                            className={`px-6 py-2 rounded-md text-sm font-bold transition-all ${!isRecibido ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500'}`}>
-                            Emitidos
+                <div className="flex items-center justify-between flex-wrap gap-4 border-b">
+                    <div className='flex flex-wrap gap-4 items-center pb-4'>
+                        <div className="flex bg-gray-100 p-1 rounded-lg">
+                            <button onClick={() => { setTipoSeleccionado(TIPO_CHEQUE.RECIBIDO); setFiltroEstado('PENDIENTE'); }}
+                                className={`px-6 py-2 rounded-md text-sm font-bold transition-all ${isRecibido ? 'bg-white text-purple-600 shadow-sm' : 'text-gray-500'}`}>
+                                Recibidos
+                            </button>
+                            <button onClick={() => { setTipoSeleccionado(TIPO_CHEQUE.EMITIDO); setFiltroEstado('ENTREGADO'); }}
+                                className={`px-6 py-2 rounded-md text-sm font-bold transition-all ${!isRecibido ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500'}`}>
+                                Emitidos
+                            </button>
+                        </div>
+                        <select value={filtroEstado} onChange={(e) => setFiltroEstado(e.target.value)} className="border-gray-300 rounded-lg text-sm">
+                            {ESTADOS_POR_TIPO[tipoSeleccionado].map(st => (
+                                <option key={st} value={st}>{ESTADO_MAP[st]?.label}</option>
+                            ))}
+                        </select>
+                    </div>
+
+                    <div className='flex items-center pb-4'>
+                        <button
+                            onClick={exportarExcel}
+                            className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors shadow-sm"
+                        >
+                            <Download className="h-4 w-4" />
+                            <span>Exportar Excel</span>
                         </button>
                     </div>
-                    <select value={filtroEstado} onChange={(e) => setFiltroEstado(e.target.value)} className="border-gray-300 rounded-lg text-sm">
-                        {ESTADOS_POR_TIPO[tipoSeleccionado].map(st => (
-                            <option key={st} value={st}>{ESTADO_MAP[st]?.label}</option>
-                        ))}
-                    </select>
+
+
                 </div>
+
 
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <div className="relative"><Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" /><input type="text" placeholder="N° Cheque..." className="pl-9 w-full border-gray-300 rounded-lg text-sm" value={busquedaNumero} onChange={(e) => setBusquedaNumero(e.target.value)} /></div>
                     <div className="relative"><Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" /><input type="text" placeholder="Tercero..." className="pl-9 w-full border-gray-300 rounded-lg text-sm" value={busquedaEmisor} onChange={(e) => setBusquedaEmisor(e.target.value)} /></div>
-                    <div className="flex items-center gap-2 col-span-2">
-                        <Calendar className="h-4 w-4 text-gray-400" />
-                        <input type="date" className="border-gray-300 rounded-lg text-sm flex-1" value={fechaDesde} onChange={(e) => setFechaDesde(e.target.value)} />
-                        <input type="date" className="border-gray-300 rounded-lg text-sm flex-1" value={fechaHasta} onChange={(e) => setFechaHasta(e.target.value)} />
+                    <div className="flex items-center justify-start gap-2 col-span-2">
+                        <div className="flex flex-col gap-1">
+                            <label className="text-[10px] font-bold text-gray-500 uppercase ml-1 tracking-wider">
+                                Vence Desde
+                            </label>
+                            <input
+                                type="date"
+                                className="border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none p-2"
+                                value={fechaDesde}
+                                onChange={(e) => setFechaDesde(e.target.value)}
+                            />
+                        </div>
+
+                        <div className="flex flex-col gap-1">
+                            <label className="text-[10px] font-bold text-gray-500 uppercase ml-1 tracking-wider">
+                                Vence Hasta
+                            </label>
+                            <input
+                                type="date"
+                                className="border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none p-2"
+                                value={fechaHasta}
+                                onChange={(e) => setFechaHasta(e.target.value)}
+                            />
+                        </div>
                         <button onClick={() => { setBusquedaNumero(''); setBusquedaEmisor(''); setFechaDesde(''); setFechaHasta(''); }} className="p-2 text-gray-400 hover:text-red-500"><Eraser className="w-5 h-5" /></button>
                     </div>
                 </div>
